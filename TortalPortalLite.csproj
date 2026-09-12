@@ -1,0 +1,94 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>TortalPortalLite</AssemblyName>
+    <RootNamespace>TortalPortalLite</RootNamespace>
+    <Version>0.1.0</Version>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <!-- Same rationale as Wonderland.csproj: these are nullable-reference-type static-analysis
+         warnings on patterns that already have a runtime null check, not suppressed per-site
+         since this is a mod, not a library with a public nullable contract to document. -->
+    <NoWarn>CS8600;CS8602;CS8603;CS8604;CS8618;CS8625</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <!--
+    Game DLLs point at the Valheim 1.0.7 DEDICATED SERVER assemblies (libs-Tools/1.0/server: Steam
+    app 896660, build 25185644, network version 39) - the side this server-only mod actually runs
+    on. Every ZDO/field/signature fact this mod relies on was verified against
+    libs-Tools/1.0/DECOMPILED/assembly_valheim_SERVER.decompiled.cs; see
+    libs-Tools/REFERENCE-DLL-PROVENANCE.md. assembly_valheim needs Publicize=true: dozens of the
+    catalog options this mod implements patch or read private ZDOMan/Game members
+    (ZDOMan.m_portalObjects, ZDOMan.ConnectPortals, Game.m_currentlyConnectingPortals, etc.).
+
+    NOTE ON THE RELATIVE PATH: Wonderland.csproj (the sibling mod this project was forked from)
+    uses "..\libs-Tools\..." here, which resolves to "SERVER SIDE ONLY\libs-Tools" - that folder
+    does not exist. The real libs-Tools is two levels up from this project
+    (WubarrkCODING\libs-Tools), so this csproj uses "..\..\libs-Tools\..." instead. Confirmed by
+    directly checking both paths before writing this file.
+  -->
+  <ItemGroup>
+    <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.1" PrivateAssets="all" />
+    <Reference Include="0Harmony">
+      <HintPath>..\..\libs-Tools\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="BepInEx">
+      <HintPath>..\..\libs-Tools\BepInEx.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="assembly_valheim">
+      <HintPath>..\..\libs-Tools\1.0\server\assembly_valheim.dll</HintPath>
+      <Publicize>true</Publicize>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="assembly_utils">
+      <HintPath>..\..\libs-Tools\1.0\server\assembly_utils.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>..\..\libs-Tools\1.0\server\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>..\..\libs-Tools\1.0\server\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- ServerSync.cs's client-side config-mismatch popup touches TMP_Text/MaskableGraphic directly. -->
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>..\..\libs-Tools\1.0\server\Unity.TextMeshPro.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\..\libs-Tools\1.0\server\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Splatform">
+      <HintPath>..\..\libs-Tools\1.0\server\Splatform.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- Plain .NET Framework BCL assembly, resolved from the installed net472 reference assemblies. -->
+    <Reference Include="System.Net.Http" />
+    <!--
+      networks.json parsing (Core/Data/Json.cs). Private=False, exactly like 0Harmony/BepInEx above -
+      this mod does not bundle its own copy. libs-Tools/DEDICATED-SERVER-TESTBED/profile-tortal already
+      has ValheimModding-JsonDotNET installed as a shared BepInEx dependency plugin (confirmed by
+      directly checking the testbed folder before adding this reference), which is where the real
+      Newtonsoft.Json.dll comes from at runtime - bundling a second copy would risk exactly the kind of
+      version-mismatch problem REFERENCE-DLL-PROVENANCE.md documents for the game's own copy.
+    -->
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\..\libs-Tools\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <MakeDir Directories="$(ProjectDir)HexiumDist\plugins" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ProjectDir)HexiumDist\plugins" />
+  </Target>
+
+</Project>
