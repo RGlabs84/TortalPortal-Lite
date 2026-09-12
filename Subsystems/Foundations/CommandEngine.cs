@@ -98,8 +98,16 @@ namespace TortalPortalLite.Subsystems.Foundations
                 case "uninstall":
                     return args.Length > 0 && args[0] == "--clean-keys" ? UninstallEngine.CleanKeys() : "tpl: syntax: uninstall --clean-keys";
                 case "help":
+                    return "tpl verbs: list, status, health, reassert, lock <x> <y> <z>, unlock <x> <y> <z>, uninstall --clean-keys, help, "
+                         + "+ access domain verbs (acl-lock, acl-coowner, acl-transfer, pin, unpin, team-create, team-invite, progression-set, progression-clear, boss-lockdown, access-status)";
                 default:
-                    return "tpl verbs: list, status, health, reassert, lock <x> <y> <z>, unlock <x> <y> <z>, uninstall --clean-keys, help";
+                    // Wave 2's access domain (Subsystems/Enforcement/AccessAdminCommands.cs) owns its
+                    // own verb set; this is the single shared entry point every domain's admin verbs
+                    // route through (see the class doc comment there for why - one Terminal.TryRunCommand
+                    // patch, not one per domain).
+                    return TortalPortalLite.Subsystems.Enforcement.AccessAdminCommands.TryDispatch(verb, args, out string response)
+                        ? response
+                        : $"tpl: unknown verb '{verb}'. Type 'removekey tpl help' for the list.";
             }
         }
 

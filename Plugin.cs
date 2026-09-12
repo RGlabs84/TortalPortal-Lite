@@ -9,6 +9,8 @@ using TortalPortalLite.Core.Data;
 using TortalPortalLite.Core.Hooks;
 using TortalPortalLite.Subsystems.Foundations;
 using TortalPortalLite.Subsystems.Topology;
+using TortalPortalLite.Subsystems.Enforcement;
+using TortalPortalLite.Subsystems.PlayerInterface;
 
 namespace TortalPortalLite
 {
@@ -71,6 +73,10 @@ namespace TortalPortalLite
             Subsystems.Register(new TopologiesSubsystem());
             Subsystems.Register(new RoutingSubsystem());
             Subsystems.Register(new TargetedSubsystem());
+            // Wave 2 - enforcement (access + lockdown domains) + player-facing UX.
+            Subsystems.Register(new AccessSubsystem());
+            Subsystems.Register(new LockdownSubsystem());
+            Subsystems.Register(new UxSubsystem());
         }
 
         private void Update()

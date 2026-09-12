@@ -18,12 +18,21 @@ namespace TortalPortalLite.Core.Data
     /// handler invoked in between - including ZDOMan.RPC_DestroyZDO, Game.RPC_SetConnection, and any
     /// handler this mod or vanilla itself registers.
     ///
-    /// Deliberately its own installer, not a Core/Hooks/ broker with registrable handlers: nothing
-    /// competes to patch RPC_RoutedRPC, and every consumer just reads Current - there is nothing to
-    /// order. ZDOMan.RPC_ZDOData is NOT patched a second time here even though #44 names it too - that
+    /// ZDOMan.RPC_ZDOData is NOT patched a second time here even though #44 names it too - that
     /// hook already exists (RpcZdoDataHook) and now also resolves + exposes the sender peer itself,
     /// exactly to avoid a second, competing patch on the same vanilla method (see Core/Hooks/ and the
     /// implementation plan's "Harmony patch collisions" hazard).
+    ///
+    /// Wave 2 integration note: this file also now owns routed-RPC CONTENT observation
+    /// (RegisterObserver), added because three independent Wave-2 engines (ux's map-ping/chat-command
+    /// capture, access's global-key RPC hardening, lockdown's global-key veto/detection) each separately
+    /// asked for a broker on this exact method. Rather than creating a second, competing patch on
+    /// RPC_RoutedRPC, this class's existing prefix ALSO safely peeks the routed-RPC envelope: per #44's
+    /// own citation, `new ZPackage(pkg.GetArray())` copies the raw bytes, and RoutedRPCData's own public
+    /// Deserialize (SERVER decompile :83463-83483) parses `m_methodHash`/`m_parameters` from that COPY -
+    /// vanilla's own subsequent read of the original `pkg` is never touched. This is now a genuine
+    /// Core/Hooks/-style broker (ordered handlers, one patch) even though it lives in Core/Data/ next to
+    /// the ambient-Current API it grew from.
     /// </summary>
     public static class SenderContext
     {
@@ -31,6 +40,12 @@ namespace TortalPortalLite.Core.Data
 
         /// <summary>The socket-verified peer that sent the routed RPC currently being dispatched, or null (outside any routed-RPC dispatch, or the peer could not be resolved).</summary>
         public static ZNetPeer? Current => _current;
+
+        /// <summary>method hash ("MethodName".GetStableHashCode()), sender peer (may be null), deserialized parameters (a fresh copy - safe to read/consume freely, it is not the live package).</summary>
+        public delegate void RpcObserver(int methodHash, ZNetPeer? sender, ZPackage parameters);
+
+        private static readonly Hooks.PriorityList<RpcObserver> _observers = new Hooks.PriorityList<RpcObserver>();
+        public static void RegisterObserver(int priority, RpcObserver observer) => _observers.Add(priority, observer);
 
         public static bool PatchOk { get; private set; }
 
@@ -55,9 +70,34 @@ namespace TortalPortalLite.Core.Data
             }
         }
 
-        private static void Prefix(ZRpc rpc)
+        private static void Prefix(ZRpc rpc, ZPackage pkg)
         {
-            _current = ResolvePeer(rpc);
+            ZNetPeer? sender = ResolvePeer(rpc);
+            _current = sender;
+
+            if (_observers.Count > 0)
+            {
+                try
+                {
+                    var data = new ZRoutedRpc.RoutedRPCData();
+                    data.Deserialize(new ZPackage(pkg.GetArray()));
+                    foreach (RpcObserver observer in _observers.InOrder())
+                    {
+                        try
+                        {
+                            observer(data.m_methodHash, sender, data.m_parameters);
+                        }
+                        catch (Exception ex)
+                        {
+                            PortalDebug.LogError($"[SenderContext] observer threw: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    PortalDebug.LogWarning($"[SenderContext] routed-RPC envelope peek failed (non-fatal): {ex.Message}");
+                }
+            }
         }
 
         private static void Postfix()
