@@ -8,6 +8,7 @@ using TortalPortalLite.Core.Compat;
 using TortalPortalLite.Core.Data;
 using TortalPortalLite.Core.Hooks;
 using TortalPortalLite.Subsystems.Foundations;
+using TortalPortalLite.Subsystems.Topology;
 
 namespace TortalPortalLite
 {
@@ -66,6 +67,10 @@ namespace TortalPortalLite
         private void RegisterSubsystems()
         {
             Subsystems.Register(new PortalOpsSubsystem());
+            // Wave 1 - topology core (topologies + routing + targeted domains).
+            Subsystems.Register(new TopologiesSubsystem());
+            Subsystems.Register(new RoutingSubsystem());
+            Subsystems.Register(new TargetedSubsystem());
         }
 
         private void Update()

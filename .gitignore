@@ -2,6 +2,9 @@ bin/
 obj/
 *.user
 
+# Claude Code tooling artifacts, not part of the mod
+.claude/
+
 # HexiumDist: the DLL copy and packed zip are build output that changes every release and would
 # bloat history if committed - manifest.json/README.md/CHANGELOG.md/icon.png are authored source
 # and stay tracked (same convention as Fatty and other Wubarrk mods).

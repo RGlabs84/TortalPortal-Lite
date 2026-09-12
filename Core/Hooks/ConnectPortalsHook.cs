@@ -14,6 +14,19 @@ namespace TortalPortalLite.Core.Hooks
     /// ordering, veto races" hazard this Core/Hooks/ folder exists to prevent (see the implementation
     /// plan). Catalog #69 NetworkReassertEngine is the intended sole writer of s_tag/ConnectionType.Portal
     /// among the handlers registered here - other handlers should only read/observe.
+    ///
+    /// Wave 1 integration note: three independent engines (Topologies #20 Displaced Routing, Routing
+    /// #23 Pairing Authority Takeover, Targeted's nearest-player mechanism A) each asked for a
+    /// prefix-cancel variant that could return false and skip vanilla's ENTIRE ConnectPortals() body
+    /// for that tick. Deliberately not added: a prefix veto here has world-wide blast radius - it
+    /// would skip reconciliation for every portal that tick, not just the ones the vetoing engine
+    /// cares about, and two engines wanting to veto in the same tick for different reasons would
+    /// silently fight (whichever registers first wins, the other's assumption breaks with no signal).
+    /// All three requesters already ship a working alternative (a fast postfix correction, synchronous
+    /// in the same frame vanilla's pass runs) - kept as the load-bearing mechanism. Revisit only if a
+    /// future option genuinely cannot be built any other way, and if so, model it as a single
+    /// first-veto-wins gate (like HandleDestroyedZdoHook) rather than letting arbitrary engines fight
+    /// over it.
     /// </summary>
     public static class ConnectPortalsHook
     {

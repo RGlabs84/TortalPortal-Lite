@@ -16,7 +16,8 @@ namespace TortalPortalLite.Core.Hooks
     /// </summary>
     public static class FindRandomUnconnectedPortalHook
     {
-        public delegate bool Handler(List<ZDO> portals, ZDO skip, string tag, out ZDO result);
+        /// <summary>Return true to override vanilla's pick - `result` may legitimately be null (a real "no partner available" outcome vanilla itself can also produce).</summary>
+        public delegate bool Handler(List<ZDO> portals, ZDO skip, string tag, out ZDO? result);
 
         private static readonly PriorityList<Handler> _handlers = new PriorityList<Handler>();
         public static bool PatchOk { get; private set; }
@@ -42,13 +43,13 @@ namespace TortalPortalLite.Core.Hooks
             }
         }
 
-        private static bool Prefix(List<ZDO> portals, ZDO skip, string tag, ref ZDO __result)
+        private static bool Prefix(List<ZDO> portals, ZDO skip, string tag, ref ZDO? __result)
         {
             foreach (Handler handler in _handlers.InOrder())
             {
                 try
                 {
-                    if (handler(portals, skip, tag, out ZDO overridden))
+                    if (handler(portals, skip, tag, out ZDO? overridden))
                     {
                         __result = overridden;
                         return false;
