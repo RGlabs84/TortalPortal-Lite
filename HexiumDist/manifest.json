@@ -1,0 +1,9 @@
+{
+    "name": "TortalPortalLite",
+    "version_number": "1.0.0",
+    "website_url": "https://ravenirongames.com/",
+    "description": "Strictly server-side Valheim 1.0.7+ portal-network mod: progression-gated gates, one-way corpse-run recovery, fast-transit terminals, per-portal ore upgrades, portal caps, and self-repairing network health checks. Zero client install, full PlayFab/Xbox/crossplay. See README.",
+    "dependencies": [
+        "denikson-BepInExPack_Valheim-5.4.2350"
+    ]
+}
