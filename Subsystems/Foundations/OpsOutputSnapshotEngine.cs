@@ -43,6 +43,10 @@ namespace TortalPortalLite.Subsystems.Foundations
     /// to touch that file) and on ZNet.WorldSaveStarted (:78989, invoked at :80524, main-thread, BEFORE
     /// PrepareSave) so the newest snapshot always matches the world file about to hit disk.
     ///
+    /// Snapshots are taken on ZNet.WorldSaveStarted, on demand (`tplite snapshot`), and automatically
+    /// before every --apply repair pass (OpsOutputRepairEngine) - never on a network-declaration reload,
+    /// since this build has no declarative network engine to reload.
+    ///
     /// Restore re-resolves every entry by rounded position (never ZDOID) and issues the shared
     /// PortalOwnership.ClaimAndWrite primitive for any tag/connection that differs - the same "reassert
     /// engine's write primitive" catalog #71/#78 both cite. A portal in the snapshot but missing from the
@@ -54,7 +58,6 @@ namespace TortalPortalLite.Subsystems.Foundations
     /// </summary>
     public static class OpsOutputSnapshotEngine
     {
-        private static IReadOnlyList<NetworkDefinition>? _lastNetworksRef;
         private static bool _worldSaveHookInstalled;
 
         public static void Initialize()
@@ -86,16 +89,9 @@ namespace TortalPortalLite.Subsystems.Foundations
 
         public static void OnUpdate(float dt)
         {
-            IReadOnlyList<NetworkDefinition> current = NetworkModel.Networks;
-            if (!ReferenceEquals(current, _lastNetworksRef))
-            {
-                bool firstObservation = _lastNetworksRef == null;
-                _lastNetworksRef = current;
-                if (!firstObservation)
-                {
-                    TakeSnapshot("networks-reload-" + FileStampNow());
-                }
-            }
+            // Reload-triggered auto-snapshot was tied to Foundations' declarative NetworkModel, which
+            // this build does not include - snapshots now happen on ZNet.WorldSaveStarted and on demand
+            // (manual / pre-repair) only.
         }
 
         private static void OnWorldSaveStarted()

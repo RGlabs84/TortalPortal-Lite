@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TortalPortalLite.Core;
+using TortalPortalLite.Core.Data;
 
 namespace TortalPortalLite.Subsystems.Foundations
 {
@@ -112,6 +113,8 @@ namespace TortalPortalLite.Subsystems.Foundations
             foreach (ZDOID uid in danglingThisScan) _danglingLastScan.Add(uid);
 
             // 3. Non-reciprocal link: A -> B while B -> C or B -> None. Informational for unmanaged portals.
+            // Excludes portals explicitly marked PortalKeys.OneWayIntentional (e.g. #207 Corpse-Run Gate) -
+            // those are a deliberate one-way trip, not a defect.
             foreach (PortalRecord record in PortalCensus.Latest)
             {
                 if (record.Connection == ZDOID.None || !byUid.TryGetValue(record.Connection, out PortalRecord partner))
@@ -120,6 +123,11 @@ namespace TortalPortalLite.Subsystems.Foundations
                 }
                 if (partner.Connection != record.Uid)
                 {
+                    ZDO? liveZdo = ZDOMan.instance?.GetZDO(record.Uid);
+                    if (liveZdo != null && liveZdo.GetBool(PortalKeys.OneWayIntentional))
+                    {
+                        continue;
+                    }
                     string network = PortalRecordStore_NetworkIdOf(byUid, record.Uid);
                     FindingSeverity sev = !string.IsNullOrEmpty(network) ? FindingSeverity.Error : FindingSeverity.Info;
                     findings.Add(new HealthFinding(sev, "NonReciprocalLink",
@@ -134,19 +142,6 @@ namespace TortalPortalLite.Subsystems.Foundations
                 {
                     findings.Add(new HealthFinding(FindingSeverity.Info, "SelfLoop",
                         "connected to itself - stable at runtime but will not survive a world restart (the on-disk connection-hash slot collapses self-loops).", new List<ZDOID> { record.Uid }));
-                }
-            }
-
-            // 5. Declared-but-not-found: a network's declared member position resolved to nothing.
-            foreach (NetworkDefinition network in NetworkModel.Networks)
-            {
-                foreach (NetworkMemberPosition pos in network.Members)
-                {
-                    if (!PortalCensus.TryGetByPosition(pos.ToVector3(), out _))
-                    {
-                        findings.Add(new HealthFinding(FindingSeverity.Warning, "DeclaredNotFound",
-                            $"network '{network.Name}' declares a member at ({pos.X:F1},{pos.Y:F1},{pos.Z:F1}) with no portal ZDO there.", Array.Empty<ZDOID>()));
-                    }
                 }
             }
 

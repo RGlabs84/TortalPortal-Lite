@@ -52,5 +52,10 @@ namespace TortalPortalLite.Core.Data
 
         /// <summary>Portals As A Data Store (#137) - which logical namespace/owner-subsystem a DataStorePayload entry belongs to, so two engines sharing a host ZDO don't overwrite each other's payload.</summary>
         public static readonly int DataStoreNamespace = "tpl_wildcard_datastorenamespace".GetStableHashCode();
+
+        // --- shared cross-domain markers ---
+
+        /// <summary>Set on the ORIGIN side of a deliberately one-way managed link (e.g. #207 Corpse-Run Gate) whose partner does not point back. Read by HealthScanEngine's NonReciprocalLink check so an intentional one-way route is never reported as a defect, and by any domain's own maintenance sweep that would otherwise force reciprocity.</summary>
+        public static readonly int OneWayIntentional = "tpl_shared_onewayintentional".GetStableHashCode();
     }
 }

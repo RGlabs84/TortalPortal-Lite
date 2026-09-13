@@ -89,32 +89,20 @@ namespace TortalPortalLite.Subsystems.Foundations
                     return Status();
                 case "health":
                     return HealthReport();
-                case "reassert":
-                    NetworkReassertEngineForceTick();
-                    return "tpl: reassert forced.";
                 case "lock":
                 case "unlock":
                     return SetLock(args, locked: verb == "lock");
                 case "uninstall":
                     return args.Length > 0 && args[0] == "--clean-keys" ? UninstallEngine.CleanKeys() : "tpl: syntax: uninstall --clean-keys";
                 case "help":
-                    return "tpl verbs: list, status, health, reassert, lock <x> <y> <z>, unlock <x> <y> <z>, uninstall --clean-keys, help, "
-                         + "+ access domain verbs (acl-lock, acl-coowner, acl-transfer, pin, unpin, team-create, team-invite, progression-set, progression-clear, boss-lockdown, access-status)";
+                    return "tpl verbs: list, status, health, lock <x> <y> <z>, unlock <x> <y> <z>, uninstall --clean-keys, help, "
+                         + "+ ops verbs (repair [--apply], snapshot [name], snapshots, restore <name> [--recreate], compat, metrics, report <x> <y> <z>)";
                 default:
-                    // Every domain's admin verbs route through this single shared entry point (see
-                    // AccessAdminCommands.cs's class doc comment for why - one Terminal.TryRunCommand
-                    // patch, not one per domain). Tried in the order each domain was integrated.
-                    if (TortalPortalLite.Subsystems.Enforcement.AccessAdminCommands.TryDispatch(verb, args, out string accessResponse))
-                    {
-                        return accessResponse;
-                    }
+                    // Every domain's admin verbs route through this single shared entry point - one
+                    // Terminal.TryRunCommand patch, not one per domain.
                     if (OpsOutputAdminCommands.TryDispatch(verb, args, out string opsResponse))
                     {
                         return opsResponse;
-                    }
-                    if (TortalPortalLite.Subsystems.WorldOps.WildcardAAdminCommands.TryDispatch(verb, args, out string wildcardResponse))
-                    {
-                        return wildcardResponse;
                     }
                     return $"tpl: unknown verb '{verb}'. Type 'removekey tpl help' for the list.";
             }
@@ -130,7 +118,7 @@ namespace TortalPortalLite.Subsystems.Foundations
 
         private static string Status()
         {
-            return $"tpl: {PortalCensus.Latest.Count} portals, {NetworkModel.Networks.Count} declared network(s), {HealthScanEngine.Findings.Count} health finding(s), last census {PortalCensus.LastScanUtc:HH:mm:ss} UTC.";
+            return $"tpl: {PortalCensus.Latest.Count} portals, {HealthScanEngine.Findings.Count} health finding(s), last census {PortalCensus.LastScanUtc:HH:mm:ss} UTC.";
         }
 
         private static string HealthReport()
@@ -141,12 +129,6 @@ namespace TortalPortalLite.Subsystems.Foundations
             }
             var lines = HealthScanEngine.Findings.Select(f => $"[{f.Severity}] {f.Category}: {f.Detail}");
             return "tpl: " + string.Join(" | ", lines.Take(20));
-        }
-
-        private static void NetworkReassertEngineForceTick()
-        {
-            // The engine's own OnUpdate is timer-gated; an explicit admin request should not wait.
-            typeof(NetworkReassertEngine).GetMethod("Reassert", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)?.Invoke(null, null);
         }
 
         private static string SetLock(string[] args, bool locked)

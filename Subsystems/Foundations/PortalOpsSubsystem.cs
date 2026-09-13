@@ -9,17 +9,15 @@ namespace TortalPortalLite.Subsystems.Foundations
     /// <summary>
     /// #84's architecture spec: one subsystem owning several engines with disjoint write ownership and
     /// a fixed intra-tick order, because ordering here is semantics, not taste - Census must run before
-    /// anything reads it; Audit must see the change stream before Reassert issues new writes, or the
-    /// mod attributes its own writes to players.
+    /// anything reads it; Audit must see the change stream before any corrective writes, or the mod
+    /// attributes its own writes to players.
     ///
-    /// Tick order this build implements: Census -> NetworkModel -> Audit -> Reassert -> HealthScan ->
-    /// (Wave 3) ReportModel -> NetworkValidation -> Repair -> Metrics -> Export -> Discord -> Http -> Map
-    /// -> Compat -> FileQueue -> JoinBriefing -> Snapshot. Command dispatch is patch-driven
-    /// (Terminal.TryRunCommand prefix), not ticked. RepairEngine, MetricsEngine and ExportEngine from
-    /// #84's full nine-engine spec were deferred out of Wave 0 (on-demand/diagnostic, not load-bearing
-    /// for anything Waves 1-2 needed) and built in Wave 3 as OpsOutput* - see
-    /// Subsystems/Foundations/OpsOutputConfig.cs for their own doc comment, which specified this exact
-    /// wiring.
+    /// Trimmed to this build's actual wanted set (#70/71/73/81/82/84 + #148's own PortalCensus read):
+    /// Census -> Audit -> HealthScan -> ReportModel -> Repair -> Metrics -> Compat -> Snapshot. Command
+    /// dispatch is patch-driven (Terminal.TryRunCommand prefix), not ticked. Everything else #84's own
+    /// nine-engine spec named (declarative-network reassertion, export/Discord/HTTP/map/file-queue/join-
+    /// briefing output surfaces, the boot-time capability probe) was deliberately cut - this product's
+    /// final feature set does not use them, and they are not load-bearing for anything kept.
     /// </summary>
     public class PortalOpsSubsystem : IPortalSubsystem
     {
@@ -31,15 +29,10 @@ namespace TortalPortalLite.Subsystems.Foundations
             FoundationsConfig.Bind(config, configSync);
             CommandEngine.Install(harmony);
             AuditEngine.Initialize();
-            PortalDirtyFlagGuardian.Initialize();
             VersionMigration.RunBootChecks();
 
             OpsOutputConfig.Bind(config, configSync);
             OpsOutputSnapshotEngine.Initialize();
-            OpsOutputExportEngine.Initialize();
-            OpsOutputFileQueueEngine.Initialize();
-            OpsOutputDiscordEngine.Initialize();
-            OpsOutputHttpEngine.Initialize();
         }
 
         public void OnWorldReady()
@@ -51,32 +44,19 @@ namespace TortalPortalLite.Subsystems.Foundations
         {
             float dt = UnityEngine.Time.deltaTime;
             PortalCensus.OnUpdate(dt);
-            NetworkModel.OnUpdate(dt);
             AuditEngine.OnUpdate(dt);
-            NetworkReassertEngine.OnUpdate(dt);
             HealthScanEngine.OnUpdate(dt);
-            CapabilityProbe.OnUpdate(dt);
 
             OpsOutputReportModel.OnUpdate(dt);
-            OpsOutputNetworkValidationEngine.OnUpdate(dt);
             OpsOutputRepairEngine.OnUpdate(dt);
             OpsOutputMetricsEngine.OnUpdate(dt);
-            OpsOutputExportEngine.OnUpdate(dt);
-            OpsOutputDiscordEngine.OnUpdate(dt);
-            OpsOutputHttpEngine.OnUpdate(dt);
-            OpsOutputMapEngine.OnUpdate(dt);
             OpsOutputCompatEngine.OnUpdate(dt);
-            OpsOutputFileQueueEngine.OnUpdate(dt);
-            OpsOutputJoinBriefingEngine.OnUpdate(dt);
             OpsOutputSnapshotEngine.OnUpdate(dt);
         }
 
         public void Shutdown()
         {
-            OpsOutputHttpEngine.Shutdown();
-            OpsOutputExportEngine.Shutdown();
             OpsOutputSnapshotEngine.Shutdown();
-            OpsOutputDiscordEngine.NotifyOffline();
         }
     }
 }

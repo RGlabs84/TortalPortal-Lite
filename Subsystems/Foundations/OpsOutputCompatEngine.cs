@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using BepInEx.Bootstrap;
 using HarmonyLib;
 using TortalPortalLite.Core;
 using TortalPortalLite.Core.Data;
@@ -40,13 +41,19 @@ namespace TortalPortalLite.Subsystems.Foundations
             (typeof(ZRoutedRpc), "RPC_RoutedRPC", new[] { typeof(ZRpc), typeof(ZPackage) }),
         };
 
+        // Known sibling mods this server is expected to run alongside - GUID, plain name, and (per a
+        // direct read of each mod's own source) the specific vanilla methods it patches that overlap
+        // with this mod's own WatchedMethods list above, plus whether that overlap is a genuine hazard.
+        private static readonly (string guid, string name, string knownOverlap)[] KnownSiblingMods =
+        {
+            ("wubarrk.wonderland", "Wonderland",
+                "Patches ZDO.SetOwner (WaterBuoyancyEngine) and ZRoutedRpc.HandleRoutedRPC (a DIFFERENT method than the RPC_RoutedRPC(ZRpc,ZPackage) this mod patches) - both prefixes veto only ZDOs WaterBuoyancyEngine itself tracks (buoyant water items), never portals. No known interference."),
+            ("wubarrk.getoffmylawn", "GetOffMyLawn",
+                "Patches ZDO.SetOwner (OwnershipHold) - the prefix vetoes only ZDOs explicitly held in its own ward-lock set (building pieces), never portals. No known interference."),
+        };
+
         private static float _commandChurnTimer;
         private static readonly Dictionary<string, object> _knownCommands = new Dictionary<string, object>(StringComparer.Ordinal);
-
-        // Foreign-tag-write detection (#82 item 7): remembers the last tag THIS mod itself last wrote to
-        // a managed portal (via NetworkReassertEngine's own intended tag for that network) so a
-        // divergence with no matching confirmed audit entry can be called out as a foreign write.
-        private static readonly Dictionary<ZDOID, string> _lastIntendedTag = new Dictionary<ZDOID, string>();
 
         public static void OnUpdate(float dt)
         {
@@ -55,11 +62,6 @@ namespace TortalPortalLite.Subsystems.Foundations
             {
                 _commandChurnTimer = 0f;
                 CheckCommandChurn();
-            }
-
-            if (OpsOutputConfig.CompatForeignWriteWarnings?.Value == true)
-            {
-                CheckForeignTagWrites();
             }
         }
 
@@ -86,18 +88,20 @@ namespace TortalPortalLite.Subsystems.Foundations
                 sb.Append('\n');
             }
 
-            sb.Append($"- ZDOMan.m_onZDODestroyed: this mod's handler installed = {OpsOutputDiscordEngineDestroyHookInstalled()}\n");
-            sb.Append($"- ZRoutedRpc.m_onNewPeer: this mod's handler installed = {OpsOutputJoinBriefingEngine.PeerHookInstalled}\n");
             sb.Append($"- Terminal.commands tracked: {_knownCommands.Count} (churn is logged as a warning when detected, not polled on demand)\n");
-            return sb.ToString();
-        }
 
-        private static bool OpsOutputDiscordEngineDestroyHookInstalled()
-        {
-            // OpsOutputDiscordEngine doesn't expose this directly (it self-installs lazily) - infer it
-            // the same way that engine does: once ZDOMan.instance exists, its own OnUpdate will have
-            // installed the hook by the next tick, so "installed" here means "will be, or already is".
-            return ZDOMan.instance != null;
+            sb.Append("- known sibling mods:\n");
+            foreach ((string guid, string name, string knownOverlap) in KnownSiblingMods)
+            {
+                bool loaded = Chainloader.PluginInfos.ContainsKey(guid);
+                sb.Append($"  - {name} ({guid}): {(loaded ? "loaded" : "not loaded")}");
+                if (loaded)
+                {
+                    sb.Append(" - ").Append(knownOverlap);
+                }
+                sb.Append('\n');
+            }
+            return sb.ToString();
         }
 
         private static void CheckCommandChurn()
@@ -122,50 +126,5 @@ namespace TortalPortalLite.Subsystems.Foundations
             }
         }
 
-        /// <summary>
-        /// #82 item 7: "if the census sees a managed portal's tag change to a value we did not write, and
-        /// no RPC_SetTag crossed the wire, log a 'foreign writer' warning naming the portal rather than
-        /// silently fighting forever." NetworkReassertEngine will simply re-assert its own intended tag
-        /// next pass regardless - this only makes the fight VISIBLE instead of silent.
-        /// </summary>
-        private static void CheckForeignTagWrites()
-        {
-            try
-            {
-                var byNetwork = new Dictionary<string, string>(StringComparer.Ordinal);
-                foreach (NetworkDefinition net in NetworkModel.Networks)
-                {
-                    byNetwork[net.Name] = net.Tag;
-                }
-
-                foreach (PortalRecord record in PortalCensus.Latest)
-                {
-                    ZDO? zdo = ZDOMan.instance?.GetZDO(record.Uid);
-                    if (zdo == null || !zdo.IsValid())
-                    {
-                        continue;
-                    }
-                    string networkId = PortalRecordStore.GetNetworkId(zdo);
-                    if (string.IsNullOrEmpty(networkId) || !byNetwork.TryGetValue(networkId, out string intendedTag))
-                    {
-                        continue;
-                    }
-
-                    _lastIntendedTag.TryGetValue(record.Uid, out string? lastIntended);
-                    _lastIntendedTag[record.Uid] = intendedTag;
-
-                    if (record.Tag != intendedTag && lastIntended == intendedTag)
-                    {
-                        // We previously observed this portal correctly matching its network's tag; now it
-                        // doesn't, and OUR intended tag hasn't changed - something else wrote it.
-                        PortalDebug.LogWarning($"[OpsOutputCompatEngine] foreign writer suspected: managed portal {record.Uid} (network '{networkId}') tag is '{record.Tag}', expected '{intendedTag}' - NetworkReassertEngine will re-assert it, but another mod or client wrote it first.");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                PortalDebug.LogWarning($"[OpsOutputCompatEngine] foreign-write check failed: {ex.GetType().Name}: {ex.Message}");
-            }
-        }
     }
 }

@@ -165,6 +165,40 @@ namespace TortalPortalLite.Subsystems.Topology
             return (a, b);
         }
 
+        /// <summary>
+        /// #207 Corpse-Run Gate, one-way variant: a genuine one-way trip, not a round-trip pair. Origin
+        /// is a normally-managed phantom (still swept by MaintenanceTick below, still self-heals against
+        /// vanilla's periodic reconciler) whose connection points at the destination; the destination is
+        /// fabricated but deliberately left un-connected (Portal connection stays None) AND unmarked as a
+        /// managed phantom, so MaintenanceTick's generic reciprocity sweep never touches it and never
+        /// tries to reap it as "orphaned" - the caller (TargetedCorpseRunEngine) owns its whole lifecycle
+        /// directly instead. PortalKeys.OneWayIntentional is set on the origin so both MaintenanceTick's
+        /// own reciprocity fix-up (below) and HealthScanEngine's NonReciprocalLink check leave it alone.
+        /// </summary>
+        public static (ZDO? origin, ZDO? destination) CreateStandaloneOneWay(Vector3 posA, Quaternion rotA, string kindA, Vector3 posB, Quaternion rotB, string kindB, string tag)
+        {
+            ZDO none = null;
+            ZDO a = CreateNewPhantom(posA, rotA, tag, kindA);
+            if (a == null)
+            {
+                return (none, none);
+            }
+            ZDO b = CreateNewPhantom(posB, rotB, tag, kindB, markAsManagedPhantom: false);
+            if (b == null)
+            {
+                DestroyPhantom(a);
+                return (none, none);
+            }
+
+            PortalOwnership.ClaimAndWrite(a, z =>
+            {
+                z.SetConnection(ZDOExtraData.ConnectionType.Portal, b.m_uid);
+                z.Set(PortalKeys.OneWayIntentional, true);
+            });
+            // b intentionally left with Portal connection = None - no return leg, by design.
+            return (a, b);
+        }
+
         /// <summary>Owner-gated destroy, exposed for standalone-pair cleanup (#207) - same recipe every other reap path in this file uses.</summary>
         public static void DestroyStandalone(ZDO zdo) => DestroyPhantom(zdo);
 
@@ -180,7 +214,10 @@ namespace TortalPortalLite.Subsystems.Topology
 
         // ---------------------------------------------------------------------------- creation/destroy
 
-        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind)
+        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind) => CreateNewPhantom(pos, rot, tag, kind, markAsManagedPhantom: true);
+
+        /// <summary>markAsManagedPhantom=false skips the shared "Phantom" marker (used only by #207's destination end) so MaintenanceTick's generic reciprocity/reap sweep below never picks this ZDO up at all - its owning engine manages its whole lifecycle directly instead.</summary>
+        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind, bool markAsManagedPhantom)
         {
             int hash = ResolvePortalPrefabHash();
             if (hash == 0)
@@ -219,7 +256,10 @@ namespace TortalPortalLite.Subsystems.Topology
 
                 z.Set(ZDOVars.s_tag, tag);
                 z.Set(ZDOVars.s_tagauthor, "server");
-                z.Set(TargetedZdoKeys.Phantom, 1);
+                if (markAsManagedPhantom)
+                {
+                    z.Set(TargetedZdoKeys.Phantom, 1);
+                }
                 z.Set(TargetedZdoKeys.Kind, kind ?? "");
                 z.Set(ZDOVars.s_health, health);
 
@@ -324,7 +364,8 @@ namespace TortalPortalLite.Subsystems.Topology
                     continue;
                 }
 
-                bool sourceWrong = source.GetConnectionZDOID(ZDOExtraData.ConnectionType.Portal) != zdo.m_uid;
+                bool oneWay = zdo.GetBool(PortalKeys.OneWayIntentional);
+                bool sourceWrong = !oneWay && source.GetConnectionZDOID(ZDOExtraData.ConnectionType.Portal) != zdo.m_uid;
                 bool phantomWrong = zdo.GetConnectionZDOID(ZDOExtraData.ConnectionType.Portal) != source.m_uid;
                 if (sourceWrong)
                 {

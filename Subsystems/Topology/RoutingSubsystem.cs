@@ -6,21 +6,21 @@ using TortalPortalLite.Core;
 namespace TortalPortalLite.Subsystems.Topology
 {
     /// <summary>
-    /// Wave 1 `routing` domain (catalog #23-#40, #222-#232 - dynamic/conditional portal routing).
-    /// Thin dispatcher over ~25 sibling engine files, one (or a tightly-coupled pair) per catalog
-    /// option, exactly the Foundations subsystem's own established shape
-    /// (Subsystems/Foundations/PortalOpsSubsystem.cs): this class owns config binding, hook/emote
-    /// registration and per-tick ordering; every engine's actual policy logic lives in its own file.
+    /// The `routing` domain, trimmed to this build's wanted set: #24 Phantom Anchor Fabrication (as a
+    /// standing, admin-declarable provisioner), #29 Progression-Gated Sealed Gate, #224
+    /// DestinationPrewarm, #225 Fast-Transit Mode (#227 Parked Terminal is the same engine, its base
+    /// mechanism). Thin dispatcher, same shape as Subsystems/Foundations/PortalOpsSubsystem.cs: this
+    /// class owns config binding and per-tick ordering; every engine's actual policy logic lives in its
+    /// own file.
     ///
-    /// Tick order: the shared registry poll and the pairing-authority safety net run first, then every
-    /// mechanism-specific engine (grouped as topology/schedule/approach/player-input/anchor engines),
-    /// then the delivery-assurance engines last - so a delivery engine reading "what does this portal
-    /// currently point at" always sees this SAME tick's freshest decision, not last tick's.
+    /// Tick order: the shared registry poll and the pairing-authority safety net run first (load-bearing
+    /// substrate every engine below writes through), then phantom-anchor provisioning (so a
+    /// freshly-declared anchor exists before anything tries to point at it this same tick), then the
+    /// sealed gate and parked terminal, then the delivery-assurance engines last - so they observe this
+    /// tick's freshest connections.
     ///
     /// Does not itself write s_tag/ConnectionType.Portal - every engine here writes exclusively through
-    /// RoutingWriteOps.Reassert, which itself always goes through
-    /// Core/Data/PortalOwnership.ClaimAndWrite, per this mod's one ownership rule
-    /// (Subsystems/Foundations/NetworkReassertEngine.cs's own doc comment).
+    /// RoutingWriteOps.Reassert, which itself always goes through Core/Data/PortalOwnership.ClaimAndWrite.
     /// </summary>
     public class RoutingSubsystem : IPortalSubsystem
     {
@@ -30,20 +30,11 @@ namespace TortalPortalLite.Subsystems.Topology
         public void Initialize(ConfigFile config, ConfigSync configSync, Harmony harmony)
         {
             RoutingConfig.Bind(config, configSync);
-
             RoutingPairingAuthorityEngine.Initialize();
-            RoutingDeterministicAssignmentEngine.Initialize();
-            RoutingPlayerRequestEngine.Initialize();
-            RoutingPrivateTerminalEngine.Initialize();
         }
 
         public void OnWorldReady()
         {
-            // Pre-peer window: m_peers is empty and every write below takes the immediate local path -
-            // the cheapest point in the server's whole lifecycle to write a topology (catalog #27/#38's
-            // own explicit guidance).
-            RoutingRingRotationEngine.OnWorldReady();
-            RoutingSeasonalSwapEngine.OnWorldReady();
         }
 
         public void OnUpdate()
@@ -61,32 +52,13 @@ namespace TortalPortalLite.Subsystems.Topology
             }
             RoutingPairingAuthorityEngine.OnUpdate(dt);
 
-            // Topology / condition engines - each computes and writes its own managed portals' desired state.
-            RoutingRotatingHubEngine.OnUpdate(dt);
-            RoutingRingRotationEngine.OnUpdate(dt);
-            RoutingScheduledEngine.OnUpdate(dt);
+            RoutingPhantomAnchorEngine.OnUpdate(dt);
             RoutingSealedGateEngine.OnUpdate(dt);
-            RoutingEventRetargetEngine.OnUpdate(dt);
-            RoutingSeasonalSwapEngine.OnUpdate(dt);
-            RoutingWorldStateEngine.OnUpdate(dt);
-            RoutingMovingAnchorEngine.OnUpdate(dt);
-            RoutingRoguelikeRerollEngine.OnUpdate(dt);
-
-            // Approach / player-input engines.
-            RoutingApproachJitEngine.OnUpdate(dt);
-            RoutingCharacterPredicateEngine.OnUpdate(dt);
-            RoutingQueueDispatchEngine.OnUpdate(dt);
-            RoutingSelfDisconnectEngine.OnUpdate(dt);
-            RoutingPlayerRequestEngine.OnUpdate(dt);
-            RoutingPrivateTerminalEngine.OnUpdate(dt);
             RoutingParkedTerminalEngine.OnUpdate(dt);
 
             // Delivery-assurance engines - run last so they observe this tick's freshest connections.
-            RoutingPreStreamEngine.OnUpdate(dt);
-            RoutingJoinBroadcastEngine.OnUpdate(dt);
             RoutingPrewarmEngine.OnUpdate(dt);
             RoutingZoneGhostPreGenEngine.OnUpdate(dt);
-            RoutingPeerLinkProbeEngine.OnUpdate(dt);
         }
 
         public void Shutdown()

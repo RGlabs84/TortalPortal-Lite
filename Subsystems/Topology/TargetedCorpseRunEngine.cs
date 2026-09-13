@@ -7,11 +7,12 @@ using TortalPortalLite.Subsystems.Foundations;
 namespace TortalPortalLite.Subsystems.Topology
 {
     /// <summary>
-    /// #207 Corpse-Run Gate - on a player's death the server raises a private, ephemeral portal PAIR
-    /// (origin near their bed/the world hub, destination near their tombstone) tagged with a zero-width
-    /// per-player prefix so vanilla's pairer keeps the two together and typing the tag is impractical
-    /// (not impossible - see failure modes) - both are torn down when the tombstone despawns or a TTL
-    /// expires.
+    /// #207 Corpse-Run Gate - on a player's death the server raises a private, ephemeral, ONE-WAY portal
+    /// (origin near their bed/the world hub, leading to their tombstone) tagged with a zero-width
+    /// per-player prefix so typing the tag is impractical (not impossible - see failure modes). By
+    /// design this is a one-way trip, not a round-trip pair: the grave-side end is never wired back to
+    /// the origin (see TargetedPhantomPortalFactory.CreateStandaloneOneWay) - both ends are torn down
+    /// together when the tombstone despawns or a TTL expires.
     ///
     /// Death detection reuses #189 Tombstone Engine's own sweep (TargetedTombstoneEngine.
     /// TryGetNewestTombstone) rather than re-implementing a second parallel tombstone tracker or a
@@ -118,7 +119,9 @@ namespace TortalPortalLite.Subsystems.Topology
             // share the tag by coincidence.
             string tag = $"​cr:{playerId}";
 
-            (ZDO origin, ZDO destination) = TargetedPhantomPortalFactory.CreateStandalonePair(
+            // One-way trip by design: the origin (bed-side) leads to the grave, but the grave-side end
+            // is not wired back - no automatic return leg. See TargetedPhantomPortalFactory.CreateStandaloneOneWay.
+            (ZDO origin, ZDO destination) = TargetedPhantomPortalFactory.CreateStandaloneOneWay(
                 originPos, originRot, "corpserungate:origin",
                 gravePos, graveRot, "corpserungate:dest",
                 tag);

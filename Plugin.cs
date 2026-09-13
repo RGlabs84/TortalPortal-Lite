@@ -9,7 +9,6 @@ using TortalPortalLite.Core.Data;
 using TortalPortalLite.Core.Hooks;
 using TortalPortalLite.Subsystems.Foundations;
 using TortalPortalLite.Subsystems.Topology;
-using TortalPortalLite.Subsystems.Enforcement;
 using TortalPortalLite.Subsystems.PlayerInterface;
 using TortalPortalLite.Subsystems.WorldOps;
 
@@ -67,21 +66,20 @@ namespace TortalPortalLite
             PortalDebug.LogAlways("TortalPortalLite initialized successfully.");
         }
 
+        /// <summary>
+        /// Registers exactly this product's final feature set: #24, #29, #70, #71, #73, #81, #82, #84,
+        /// #98, #148, #207, #224, #225 (plus #178/#187/#189 as load-bearing substrate under #207, and
+        /// #23 as load-bearing substrate under the routing engines). Everything else the original
+        /// research catalog covered was deliberately cut, not merely disabled - see git history for the
+        /// full 263-option build if it's ever needed again.
+        /// </summary>
         private void RegisterSubsystems()
         {
             Subsystems.Register(new PortalOpsSubsystem());
-            // Wave 1 - topology core (topologies + routing + targeted domains).
-            Subsystems.Register(new TopologiesSubsystem());
             Subsystems.Register(new RoutingSubsystem());
             Subsystems.Register(new TargetedSubsystem());
-            // Wave 2 - enforcement (access + lockdown domains) + player-facing UX.
-            Subsystems.Register(new AccessSubsystem());
-            Subsystems.Register(new LockdownSubsystem());
             Subsystems.Register(new UxSubsystem());
-            // Wave 3 - economy + wildcard (remaining ops output surfaces are wired directly into
-            // PortalOpsSubsystem itself, not registered separately - see its own Initialize/OnUpdate).
             Subsystems.Register(new EconomySubsystem());
-            Subsystems.Register(new WildcardASubsystem());
             Subsystems.Register(new WildcardBSubsystem());
         }
 
