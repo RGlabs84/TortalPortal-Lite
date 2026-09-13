@@ -101,13 +101,22 @@ namespace TortalPortalLite.Subsystems.Foundations
                     return "tpl verbs: list, status, health, reassert, lock <x> <y> <z>, unlock <x> <y> <z>, uninstall --clean-keys, help, "
                          + "+ access domain verbs (acl-lock, acl-coowner, acl-transfer, pin, unpin, team-create, team-invite, progression-set, progression-clear, boss-lockdown, access-status)";
                 default:
-                    // Wave 2's access domain (Subsystems/Enforcement/AccessAdminCommands.cs) owns its
-                    // own verb set; this is the single shared entry point every domain's admin verbs
-                    // route through (see the class doc comment there for why - one Terminal.TryRunCommand
-                    // patch, not one per domain).
-                    return TortalPortalLite.Subsystems.Enforcement.AccessAdminCommands.TryDispatch(verb, args, out string response)
-                        ? response
-                        : $"tpl: unknown verb '{verb}'. Type 'removekey tpl help' for the list.";
+                    // Every domain's admin verbs route through this single shared entry point (see
+                    // AccessAdminCommands.cs's class doc comment for why - one Terminal.TryRunCommand
+                    // patch, not one per domain). Tried in the order each domain was integrated.
+                    if (TortalPortalLite.Subsystems.Enforcement.AccessAdminCommands.TryDispatch(verb, args, out string accessResponse))
+                    {
+                        return accessResponse;
+                    }
+                    if (OpsOutputAdminCommands.TryDispatch(verb, args, out string opsResponse))
+                    {
+                        return opsResponse;
+                    }
+                    if (TortalPortalLite.Subsystems.WorldOps.WildcardAAdminCommands.TryDispatch(verb, args, out string wildcardResponse))
+                    {
+                        return wildcardResponse;
+                    }
+                    return $"tpl: unknown verb '{verb}'. Type 'removekey tpl help' for the list.";
             }
         }
 

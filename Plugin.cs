@@ -11,6 +11,7 @@ using TortalPortalLite.Subsystems.Foundations;
 using TortalPortalLite.Subsystems.Topology;
 using TortalPortalLite.Subsystems.Enforcement;
 using TortalPortalLite.Subsystems.PlayerInterface;
+using TortalPortalLite.Subsystems.WorldOps;
 
 namespace TortalPortalLite
 {
@@ -77,6 +78,11 @@ namespace TortalPortalLite
             Subsystems.Register(new AccessSubsystem());
             Subsystems.Register(new LockdownSubsystem());
             Subsystems.Register(new UxSubsystem());
+            // Wave 3 - economy + wildcard (remaining ops output surfaces are wired directly into
+            // PortalOpsSubsystem itself, not registered separately - see its own Initialize/OnUpdate).
+            Subsystems.Register(new EconomySubsystem());
+            Subsystems.Register(new WildcardASubsystem());
+            Subsystems.Register(new WildcardBSubsystem());
         }
 
         private void Update()
