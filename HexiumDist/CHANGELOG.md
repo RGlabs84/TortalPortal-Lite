@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.2
+
+### Fixed
+- **Version Migration falsely flagged verified builds as unverified.** The running-build check
+  compared `Version.GetVersionString()` — which carries a platform prefix on some builds (`l-1.0.12`
+  on Steam Linux, `dw-`/`dl-` on Deck, `ms-` on Microsoft Store) — against the bare `1.0.12` in the
+  verified list, so it never matched. Now compares `Version.CurrentVersion` (bare major.minor.patch);
+  the prefixed string is still logged for humans.
+- **Version Migration always reported the portal-prefab registry as empty.** The
+  `Game.instance.PortalPrefabHash` check ran during the plugin's own Awake, before the game's `Game`
+  object exists — so it always failed, and `repair --apply` was permanently refused regardless of
+  `AcceptUnverifiedBuild`. The check now runs once on the first tick `Game.instance` exists (which
+  `Game.Awake` populates synchronously), logs the verified prefab count, and only errors on a
+  genuinely empty registry.
+
 ## 1.0.1
 
 ### Added

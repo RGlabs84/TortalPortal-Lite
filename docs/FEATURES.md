@@ -1,7 +1,7 @@
 # TortalPortal Lite — Admin & Configuration Reference
 
 **Mod:** TortalPortal Lite (GUID `wubarrk.tortalportallite`)
-**Version:** 1.0.1
+**Version:** 1.0.2
 **Install footprint:** strictly server-side. Every feature below runs entirely on the dedicated server against raw ZDO data — there is nothing for players to install, ever, and Steam/Xbox/PlayFab/crossplay clients all see the identical result.
 
 This document replaces the older `docs/FEATURE-STATUS.md` and `docs/WORKING-FEATURES.md`, which described a much larger, 263-option research catalog explored during the mod's R&D pass. That catalog has since been narrowed down to the 14 features actually shipped in the 1.0.0 release (down from 296 files/~44.8k lines to 83 files/~10k lines); the old documents are archived under `docs/research-archive/` for history and no longer describe the shipped mod. A 15th feature, BarrkBOT Portal Export, was added afterwards — it re-adds (against BarrkBOT's own ingestion contract, not the old generic export wave) the one piece of that cut research catalog BarrkBOT itself still needed.
@@ -79,10 +79,10 @@ Declared game objects (anchors, gates, terminals, ore-gate perks) are not config
 
 ## 6. Version Migration
 
-**What it does:** A boot-time safety check that verifies (a) this is a Valheim build the mod has actually been verified against, and (b) the game's own portal-prefab registry looks intact. If either check fails, destructive passes (`repair --apply`) refuse to run, to avoid risking world corruption — unless an admin explicitly opts in.
+**What it does:** A startup safety check that verifies (a) this is a Valheim build the mod has actually been verified against (compared on the bare `major.minor.patch`, ignoring the platform prefix `GetVersionString()` adds — `l-` on Steam Linux, etc.), and (b) the game's own portal-prefab registry looks intact. Check (a) runs at plugin load; check (b) waits for the game's own `Game` object to exist (a few frames later, since it isn't created yet when BepInEx loads plugins) and then runs exactly once, logging the verified prefab count. If either check fails, destructive passes (`repair --apply`) refuse to run, to avoid risking world corruption — unless an admin explicitly opts in.
 
 **Config:** `GlobalConfig`
-- `AcceptUnverifiedBuild` — explicit admin opt-in to allow destructive passes to run even when the boot-time checks fail. Off by default; must be explicitly set to allow running against an unverified build.
+- `AcceptUnverifiedBuild` — explicit admin opt-in to allow destructive passes to run even when the build-version check fails. Off by default. Does **not** override a genuinely empty portal-prefab registry — that gate is hard.
 
 **Declaration file:** None.
 

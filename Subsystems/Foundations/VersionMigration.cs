@@ -11,7 +11,9 @@ namespace TortalPortalLite.Subsystems.Foundations
     /// decompile :112112), and whether that build is one this mod has actually verified against.
     /// Structural self-check: Game.instance.PortalPrefabHash non-empty (:100021) - if this mod ever
     /// runs against a build where the Inspector-configured portal-prefab list is missing/empty, that
-    /// alone should downgrade to read-only before anything else notices.
+    /// alone should downgrade to read-only before anything else notices. The version half runs at
+    /// plugin Awake; the registry half is deferred to the first tick Game.instance exists, since the
+    /// game's own Game object has not been created yet when BepInEx runs a plugin's Awake.
     /// </summary>
     public static class VersionMigration
     {
@@ -24,30 +26,59 @@ namespace TortalPortalLite.Subsystems.Foundations
         public static bool PortalPrefabHashSane { get; private set; }
         public static string RunningVersion { get; private set; } = "(unknown)";
 
+        private static bool _prefabCheckDone;
+
         /// <summary>True if a destructive pass (reassert/repair) is allowed to run. PortalPrefabHashSane is a hard gate - AcceptUnverifiedBuild only overrides the build-version check, never a genuinely broken portal registry.</summary>
         public static bool DestructivePassesAllowed => PortalPrefabHashSane && (IsVerifiedBuild || GlobalConfig.AcceptUnverifiedBuild?.Value == true);
 
         public static void RunBootChecks()
         {
+            string bareVersion = "(unknown)";
             try
             {
+                // GetVersionString() carries a platform prefix on some builds - "l-1.0.12" on Steam
+                // Linux, "dw-"/"dl-" on Deck, "ms-" on Microsoft Store (Version.GetPlatformPrefix,
+                // :112158) - so it is logged for humans but never compared. CurrentVersion.ToString()
+                // is the bare major.minor.patch the verified list is keyed by.
                 RunningVersion = Version.GetVersionString();
+                bareVersion = Version.CurrentVersion.ToString();
             }
             catch (Exception ex)
             {
-                PortalDebug.LogWarning($"[VersionMigration] could not read Version.GetVersionString(): {ex.Message}");
+                PortalDebug.LogWarning($"[VersionMigration] could not read the game version: {ex.Message}");
             }
 
-            IsVerifiedBuild = VerifiedBuilds.Contains(RunningVersion);
-            PortalPrefabHashSane = Game.instance != null && Game.instance.PortalPrefabHash != null && Game.instance.PortalPrefabHash.Count > 0;
-
+            IsVerifiedBuild = VerifiedBuilds.Contains(bareVersion);
             if (!IsVerifiedBuild)
             {
-                PortalDebug.LogWarning($"[VersionMigration] running Valheim '{RunningVersion}', which is outside this mod's verified build list ({string.Join(", ", VerifiedBuilds)}). Census/health/export still run; reassert/repair will refuse unless AcceptUnverifiedBuild=true.");
+                PortalDebug.LogWarning($"[VersionMigration] running Valheim '{RunningVersion}' (build {bareVersion}), which is outside this mod's verified build list ({string.Join(", ", VerifiedBuilds)}). Census/health/export still run; reassert/repair will refuse unless AcceptUnverifiedBuild=true.");
             }
-            if (!PortalPrefabHashSane)
+            // The portal-prefab registry check lives in OnUpdate: Game.instance does not exist yet
+            // during a BepInEx plugin's own Awake (Game.Awake, :100026, runs when the scene loads).
+        }
+
+        /// <summary>
+        /// Game.Awake (:100026-100032) sets Game.instance and fills PortalPrefabHash from m_portalPrefabs
+        /// in the same synchronous pass, so "instance exists" is exactly "the registry is as populated as
+        /// it will ever be" - evaluated once on the first tick that's true, never re-polled after.
+        /// </summary>
+        public static void OnUpdate()
+        {
+            if (_prefabCheckDone || Game.instance == null)
             {
-                PortalDebug.LogError("[VersionMigration] Game.instance.PortalPrefabHash is null or empty - the game's own portal-prefab registry looks wrong on this build. Destructive passes refused regardless of AcceptUnverifiedBuild.");
+                return;
+            }
+            _prefabCheckDone = true;
+
+            int count = Game.instance.PortalPrefabHash?.Count ?? 0;
+            PortalPrefabHashSane = count > 0;
+            if (PortalPrefabHashSane)
+            {
+                PortalDebug.LogAlways($"[VersionMigration] portal-prefab registry verified ({count} prefab hash(es)). Destructive passes {(DestructivePassesAllowed ? "allowed" : "still gated by the unverified-build check")}.");
+            }
+            else
+            {
+                PortalDebug.LogError("[VersionMigration] Game.instance.PortalPrefabHash is empty - the game's own portal-prefab registry looks wrong on this build. Destructive passes refused regardless of AcceptUnverifiedBuild.");
             }
         }
     }
