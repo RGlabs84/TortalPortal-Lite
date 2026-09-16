@@ -1,10 +1,10 @@
 # TortalPortal Lite — Admin & Configuration Reference
 
 **Mod:** TortalPortal Lite (GUID `wubarrk.tortalportallite`)
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Install footprint:** strictly server-side. Every feature below runs entirely on the dedicated server against raw ZDO data — there is nothing for players to install, ever, and Steam/Xbox/PlayFab/crossplay clients all see the identical result.
 
-This document replaces the older `docs/FEATURE-STATUS.md` and `docs/WORKING-FEATURES.md`, which described a much larger, 263-option research catalog explored during the mod's R&D pass. That catalog has since been narrowed down to the 14 features actually shipped in this release (down from 296 files/~44.8k lines to 83 files/~10k lines); the old documents are archived under `docs/research-archive/` for history and no longer describe the shipped mod.
+This document replaces the older `docs/FEATURE-STATUS.md` and `docs/WORKING-FEATURES.md`, which described a much larger, 263-option research catalog explored during the mod's R&D pass. That catalog has since been narrowed down to the 14 features actually shipped in the 1.0.0 release (down from 296 files/~44.8k lines to 83 files/~10k lines); the old documents are archived under `docs/research-archive/` for history and no longer describe the shipped mod. A 15th feature, BarrkBOT Portal Export, was added afterwards — it re-adds (against BarrkBOT's own ingestion contract, not the old generic export wave) the one piece of that cut research catalog BarrkBOT itself still needed.
 
 ## Configuration basics
 
@@ -191,6 +191,20 @@ Section `40 - Ux: Advanced Schemes`
 
 ---
 
+## 15. BarrkBOT Portal Export
+
+**What it does:** Writes a live, atomically-updated `barrkbot_portals.json` file — per-player portal counts, cap/over-cap flags, and world totals — for BarrkBOT (or anything else following its published ingestion contract) to read straight off the filesystem. No HTTP, webhook, or auth involved; BarrkBOT only ever reads this file, never writes it. This re-adds the one piece of the original (non-Lite) TortalPortal's export feature that BarrkBOT itself still needs, built against BarrkBOT's own documented contract rather than the old generic JSON/CSV export wave that was cut with the rest of the research catalog.
+
+**Config:** Section `84 - Ops: BarrkBot Export`
+- `Enabled` — master switch. Off leaves no file rather than a stale one. Default: `true`
+- `IntervalSeconds` — how often the file is rewritten. Clamped to a 60-second floor, matching BarrkBOT's own 60s sweep interval. Default: `60`
+
+**Declaration file:** None — reads live off `PortalCensus` and, if feature 10 (Server-Enforced Portal Caps) is enabled, its per-creator cap.
+
+**Output:** `<BepInEx>/config/TortalPortalLite/barrkbot_portals.json`, written temp-then-swap so a reader never observes a half-written file. Also runnable on demand via `removekey tpl barrkbot`.
+
+---
+
 ## Admin console
 
 Every command is typed as `removekey tpl <verb> [args]` in an admin's own in-game console (F5) or chat — this piggybacks on vanilla's own remote-command channel, so no client mod is needed.
@@ -210,6 +224,7 @@ Every command is typed as `removekey tpl <verb> [args]` in an admin's own in-gam
 | `restore <name> [--recreate]` | Restores the world's portal state from a named snapshot, undoing a batch of changes. |
 | `compat` | Reports Harmony patches on shared vanilla methods and the Wonderland/GetOffMyLawn compatibility check. |
 | `metrics` | Prints portal counts and breakdowns (per-tag/per-biome/per-builder), plus transit/top-route heuristics. |
+| `barrkbot` | Forces an immediate rewrite of `barrkbot_portals.json` (feature 15), rather than waiting for its own timer. |
 | `report <x> <y> <z>` | Prints a detailed diagnostic report for the specific portal/anchor at the given position. |
 
 ---
@@ -229,15 +244,18 @@ though they aren't a feature in their own right — noted below):
 7. `7 - Foundations: Metrics` — feature 5, Metrics.
 8. `82 - Ops: Repair (extra)` — feature 4, Repair (advanced/dangerous options).
 9. `83 - Ops: Snapshot` — feature 4, Repair (the snapshot directory/retention Repair's auto-snapshot uses; also used by `snapshot`/`snapshots`/`restore`).
-10. `9 - Routing: Core` — infrastructure shared by features 1, 2, and 13 (the reassertion loop every routing.json declaration relies on).
-11. `11 - Routing: Schedules and Conditions` — feature 2, Sealed Gate.
-12. `12 - Routing: Approach and JIT` — feature 13, Fast-Transit/Parked Terminal (approach-detection poll rate).
-13. `16 - Routing: Delivery Pipeline` — feature 12, DestinationPrewarm (also backs feature 13's zone-readiness check).
-14. `20 - Targeted: Foundation` — infrastructure: the phantom-portal factory feature 11 is built on.
-15. `28 - Targeted: Bed` — infrastructure: feature 11's origin-lookup (a player's claimed bed).
-16. `41 - Targeted: Corpse Run` — feature 11, Corpse-Run Gate.
-17. `30 - Ux: General` — feature 14, Live Portal Markers (subsystem master switch).
-18. `40 - Ux: Advanced Schemes` — feature 14, Live Portal Markers.
-19. `90 - Economy: Core Kernel` — feature 9, The Ore Gate (master switch + declaration file path).
-20. `150 - WildcardB: General` — infrastructure: master switch for feature 10's subsystem.
-21. `155 - WildcardB: Portal Caps` — feature 10, Server-Enforced Portal Caps.
+10. `84 - Ops: BarrkBot Export` — feature 15, BarrkBOT Portal Export.
+11. `9 - Routing: Core` — infrastructure shared by features 1, 2, and 13 (the reassertion loop every routing.json declaration relies on).
+12. `11 - Routing: Schedules and Conditions` — feature 2, Sealed Gate.
+13. `12 - Routing: Approach and JIT` — feature 13, Fast-Transit/Parked Terminal (approach-detection poll rate).
+14. `16 - Routing: Delivery Pipeline` — feature 12, DestinationPrewarm (also backs feature 13's zone-readiness check).
+15. `20 - Targeted: Foundation` — infrastructure: the phantom-portal factory feature 11 is built on.
+16. `28 - Targeted: Bed` — infrastructure: feature 11's origin-lookup (a player's claimed bed).
+17. `41 - Targeted: Corpse Run` — feature 11, Corpse-Run Gate.
+18. `30 - Ux: General` — feature 14, Live Portal Markers (subsystem master switch).
+19. `40 - Ux: Advanced Schemes` — feature 14, Live Portal Markers.
+20. `90 - Economy: Core Kernel` — feature 9, The Ore Gate (master switch + declaration file path).
+21. `150 - WildcardB: General` — infrastructure: master switch for feature 10's subsystem.
+22. `155 - WildcardB: Portal Caps` — feature 10, Server-Enforced Portal Caps.
+
+Note: feature 15 (BarrkBOT Export, section `84`) reads feature 10's cap value directly from `WildcardBConfig` — it does not duplicate the cap into its own section.

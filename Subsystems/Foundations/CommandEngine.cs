@@ -96,7 +96,7 @@ namespace TortalPortalLite.Subsystems.Foundations
                     return args.Length > 0 && args[0] == "--clean-keys" ? UninstallEngine.CleanKeys() : "tpl: syntax: uninstall --clean-keys";
                 case "help":
                     return "tpl verbs: list, status, health, lock <x> <y> <z>, unlock <x> <y> <z>, uninstall --clean-keys, help, "
-                         + "+ ops verbs (repair [--apply], snapshot [name], snapshots, restore <name> [--recreate], compat, metrics, report <x> <y> <z>)";
+                         + "+ ops verbs (repair [--apply], snapshot [name], snapshots, restore <name> [--recreate], compat, metrics, barrkbot, report <x> <y> <z>)";
                 default:
                     // Every domain's admin verbs route through this single shared entry point - one
                     // Terminal.TryRunCommand patch, not one per domain.

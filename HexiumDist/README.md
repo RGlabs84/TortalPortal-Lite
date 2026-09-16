@@ -19,7 +19,8 @@ identical experience, with nothing to download. Forked from the sibling mod Wond
 architecture, this is TortalPortal Lite's **v1.0.0** — the first packaged release. A large internal
 R&D pass explored 263 possible portal mechanisms; the product owner picked exactly the 14 below to
 actually ship. Everything else was cut from the codebase entirely, not just disabled — down from
-296 files / ~44.8k lines to 83 files / ~10k lines.
+296 files / ~44.8k lines to 83 files / ~10k lines. A **v1.0.1** follow-up added a 15th feature,
+BarrkBOT Portal Export, for admins who want portal data fed into their own tooling.
 
 ---
 
@@ -41,6 +42,7 @@ actually ship. Everything else was cut from the codebase entirely, not just disa
   - [📡 DestinationPrewarm](#-destinationprewarm)
   - [🚄 Fast-Transit Mode & Parked Terminal](#-fast-transit-mode--parked-terminal)
   - [📍 Live Portal Markers](#-live-portal-markers)
+  - [📤 BarrkBOT Portal Export](#-barrkbot-portal-export)
 - [💻 Admin Console](#-admin-console)
 - [🔧 Configuration](#-configuration)
 - [📦 Dependencies](#-dependencies)
@@ -170,6 +172,16 @@ family uses is permanent once placed, which is exactly why this one exists. Off 
 (`LiveMarkersEnabled`, config section `40 - Ux: Advanced Schemes`) and kept to a small radius, since
 a persistent event's radius also touches nearby spawners and weather.
 
+### 📤 BarrkBOT Portal Export
+**A live feed for your own tooling, not just your own eyes.** Writes
+`BepInEx/config/TortalPortalLite/barrkbot_portals.json` — per-player portal counts, cap/over-cap
+flags, and world totals — atomically (temp-file-then-swap, so nothing reading it ever catches a
+half-written file), on a floor of once every 60 seconds. Built directly against BarrkBOT's own
+published ingestion contract: no HTTP, no webhook, no auth — purely a file on this server's own disk
+for BarrkBOT (or anything else you point at it) to read on its own schedule. Force an immediate
+rewrite any time with `removekey tpl barrkbot`. Config section `84 - Ops: BarrkBot Export`
+(`Enabled`, default on; `IntervalSeconds`, default 60, floored at 60).
+
 ---
 
 ## 💻 Admin Console
@@ -193,6 +205,7 @@ Lite from in-game needs no client mod either.
 | `restore <name> [--recreate]` | Restores a named snapshot; `--recreate` re-creates any portal the snapshot had that no longer exists in the world. |
 | `compat` | See [Compat](#-compat) above. |
 | `metrics` | See [Metrics](#-metrics) above. |
+| `barrkbot` | Forces an immediate rewrite of `barrkbot_portals.json` — see [BarrkBOT Portal Export](#-barrkbot-portal-export) above. |
 | `report <x> <y> <z>` | A detailed, single-portal readout for the portal at that position. |
 
 ---
@@ -221,6 +234,7 @@ a config change to take effect.
 | Setting | Section | What it does |
 | :--- | :--- | :--- |
 | File-system paths | *(various)* | Where this server keeps `routing.json`, `economy.json`, and its own snapshot/report output. Read straight off this machine's disk, never synced to any client, since they're specific to this server. |
+| `Enabled`, `IntervalSeconds` | `84 - Ops: BarrkBot Export` | See [BarrkBOT Portal Export](#-barrkbot-portal-export) above — local because it's writing a file to this server's own disk. |
 
 ### Declaration Files
 Two of the features above aren't driven by the `.cfg` at all — they're declared directly in JSON

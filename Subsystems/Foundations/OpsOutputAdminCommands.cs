@@ -10,7 +10,7 @@ namespace TortalPortalLite.Subsystems.Foundations
     /// CommandEngine.Dispatch's `default:` case (Subsystems/Foundations/CommandEngine.cs).
     ///
     /// Verbs: repair [--apply], snapshot [name], snapshots, restore &lt;name&gt; [--recreate], compat,
-    /// metrics, report &lt;x&gt; &lt;y&gt; &lt;z&gt;.
+    /// metrics, barrkbot, report &lt;x&gt; &lt;y&gt; &lt;z&gt;.
     /// </summary>
     public static class OpsOutputAdminCommands
     {
@@ -24,6 +24,7 @@ namespace TortalPortalLite.Subsystems.Foundations
                 case "restore": response = Restore(args); return true;
                 case "compat": response = OpsOutputCompatEngine.BuildReport(); return true;
                 case "metrics": response = MetricsSummary(); return true;
+                case "barrkbot": response = BarrkBotExportEngine.ExportNow(); return true;
                 case "report": response = ReportAt(args); return true;
                 default:
                     response = "";

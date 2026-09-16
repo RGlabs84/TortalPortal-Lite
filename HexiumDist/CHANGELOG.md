@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1
+
+### Added
+- **BarrkBOT Portal Export.** Writes `barrkbot_portals.json` — per-player portal counts, cap/over-cap
+  flags, and world totals — atomically to `BepInEx/config/TortalPortalLite/`, on a floor of once
+  every 60 seconds, built directly against BarrkBOT's own published ingestion contract (no HTTP, no
+  webhook, no auth — file-only; BarrkBOT reads, it never writes). Force an immediate rewrite with
+  `removekey tpl barrkbot`. Config section `84 - Ops: BarrkBot Export` (`Enabled`, `IntervalSeconds`).
+
 ## 1.0.0
 
 ### Added

@@ -1,0 +1,13 @@
+{
+  "schema_version": 3,
+  "generated_at": "2026-09-15T20:00:00.0000000Z",
+  "source": "TortalPortalLite 1.0.0",
+  "intervals": {
+    "write_seconds": 60
+  },
+  "cap": null,
+  "cap_enabled": false,
+  "total_portals": 0,
+  "unattributed_portals": 0,
+  "players": {}
+}

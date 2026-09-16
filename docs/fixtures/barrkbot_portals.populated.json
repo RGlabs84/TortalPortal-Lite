@@ -1,0 +1,38 @@
+{
+  "schema_version": 3,
+  "generated_at": "2026-09-15T20:00:00.0000000Z",
+  "source": "TortalPortalLite 1.0.0",
+  "intervals": {
+    "write_seconds": 60
+  },
+  "cap": 4,
+  "cap_enabled": true,
+  "total_portals": 13,
+  "unattributed_portals": 2,
+  "players": {
+    "76561198012345678": {
+      "player_id": "76561198012345678",
+      "name": "Ragnar",
+      "online": true,
+      "portal_count": 5,
+      "at_cap": true,
+      "over_cap": true
+    },
+    "76561198087654321": {
+      "player_id": "76561198087654321",
+      "name": "Freydis",
+      "online": false,
+      "portal_count": 4,
+      "at_cap": true,
+      "over_cap": false
+    },
+    "76561198055555555": {
+      "player_id": "76561198055555555",
+      "name": "Bjorn",
+      "online": false,
+      "portal_count": 2,
+      "at_cap": false,
+      "over_cap": false
+    }
+  }
+}
