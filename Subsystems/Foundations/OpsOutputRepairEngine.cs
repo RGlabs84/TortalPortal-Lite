@@ -19,10 +19,13 @@ namespace TortalPortalLite.Subsystems.Foundations
     /// removal are deletions, not network membership declarations; there is nothing to add to
     /// networks.json for either). An automatic pre-repair snapshot (OpsOutputSnapshotEngine) is taken
     /// before every --apply pass so `tplite restore &lt;name&gt;` can always undo the whole batch.
+    /// While VersionMigration.DestructivePassesAllowed is false the automatic --apply pass logs that it is
+    /// idle ONCE and then skips silently, resuming by itself the moment the gate opens.
     /// </summary>
     public static class OpsOutputRepairEngine
     {
         private static float _autoTimer;
+        private static bool _gateIdleLogged;
 
         /// <summary>Cumulative count of individually-applied repair actions since this process started - exposed for the /metrics HTTP route (tplite_repairs_total) and Discord summaries.</summary>
         public static long TotalActionsApplied { get; private set; }
@@ -41,6 +44,25 @@ namespace TortalPortalLite.Subsystems.Foundations
             }
             _autoTimer = 0f;
             bool dryRun = FoundationsConfig.RepairDryRunDefault?.Value != false;
+            if (!dryRun && !VersionMigration.DestructivePassesAllowed)
+            {
+                // Run(apply: true) could only come back refused, so say so once and skip instead of
+                // re-logging the identical refusal every interval (the VanillaBean box printed it 230
+                // times across its 1.0.3/1.0.4 boots after moving to a then-unverified Valheim 1.0.15).
+                // Checked at fire time rather than at boot on purpose: VersionMigration's registry half
+                // only lands once Game.instance exists, so a boot-time check would flag every build.
+                if (!_gateIdleLogged)
+                {
+                    _gateIdleLogged = true;
+                    PortalDebug.LogWarning("[OpsOutputRepairEngine] automatic --apply pass is idle: destructive passes are disallowed on this build (see VersionMigration/PortalPrefabHashSane). It resumes by itself if the gate opens (AcceptUnverifiedBuild hot-reloads); set DryRunDefault=true for report-only passes meanwhile.");
+                }
+                return;
+            }
+            if (_gateIdleLogged)
+            {
+                _gateIdleLogged = false;
+                PortalDebug.LogAlways($"[OpsOutputRepairEngine] automatic pass resumed ({(dryRun ? "DryRunDefault=true, report-only" : "destructive passes are allowed again")}).");
+            }
             string result = Run(apply: !dryRun);
             PortalDebug.LogAlways($"[OpsOutputRepairEngine] automatic pass: {result}");
         }

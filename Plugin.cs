@@ -25,7 +25,7 @@ namespace TortalPortalLite
     {
         public const string ModGUID = "wubarrk.tortalportallite";
         public const string ModName = "TortalPortalLite";
-        public const string ModVersion = "1.0.4";
+        public const string ModVersion = "1.0.5";
 
         private const float ConfigPollInterval = 5f;
 

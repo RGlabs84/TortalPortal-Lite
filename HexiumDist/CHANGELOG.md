@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.5
+
+### Fixed
+- **Automatic repair never ran on Valheim 1.0.15 — and said so every five minutes.** `1.0.15` was
+  outside the verified-build list, so with `AutoRepair = true` every scheduled `--apply` pass was
+  refused by the Version Migration gate and the identical refusal line was logged each interval
+  (230 times on one server). `1.0.15` is now verified: a per-class diff of the decompiled 1.0.12 and
+  1.0.15 server assemblies shows the entire portal write path (`Game`, `ZDOMan`, `ZDO`,
+  `ZDOExtraData`, `ZDOVars`, `ZRoutedRpc`, `ZNetScene`, `TeleportWorld`) is byte-identical, and the
+  classes that did change (`Terminal`, `ZNet`, `TerrainComp`, `Inventory`, `Piece`, `Player`,
+  `Character`) changed outside every member this mod patches or calls.
+
+### Changed
+- **The automatic repair pass now idles quietly while the destructive gate is closed.** It logs one
+  warning explaining why (and what to do about it) the first time a scheduled `--apply` pass would
+  be refused, skips silently after that, and logs a "resumed" line the moment the gate opens —
+  whether by `AcceptUnverifiedBuild` hot-reloading, `DryRunDefault` flipping to report-only, or a
+  future build being verified. The console/RemoteCommand `repair --apply` verb still refuses with
+  its full message every time it's asked.
+
 ## 1.0.4
 
 ### Fixed

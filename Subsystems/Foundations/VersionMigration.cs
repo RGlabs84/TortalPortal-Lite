@@ -19,8 +19,15 @@ namespace TortalPortalLite.Subsystems.Foundations
     {
         public const int CurrentSchemaVersion = 1;
 
-        /// <summary>Builds this mod has actually been checked against - grow this list as it's verified against newer patches, never assume forward compatibility silently.</summary>
-        private static readonly HashSet<string> VerifiedBuilds = new HashSet<string> { "1.0.7", "1.0.12" };
+        /// <summary>
+        /// Builds this mod has actually been checked against - grow this list as it's verified against newer
+        /// patches, never assume forward compatibility silently. 1.0.15 (2026-09-20): per-class diff of the
+        /// ilspycmd decompiles of the 1.0.12 and 1.0.15 server assemblies - Game, ZDOMan, ZDO, ZDOExtraData,
+        /// ZDOVars, ZRoutedRpc, ZRpc, ZNetScene, ZNetView, TeleportWorld, ZDOID and ZPackage are byte-identical,
+        /// and the classes that did change (Terminal, ZNet, TerrainComp, Inventory, Piece, Player, Character)
+        /// changed outside every member this mod patches or calls.
+        /// </summary>
+        private static readonly HashSet<string> VerifiedBuilds = new HashSet<string> { "1.0.7", "1.0.12", "1.0.15" };
 
         public static bool IsVerifiedBuild { get; private set; }
         public static bool PortalPrefabHashSane { get; private set; }

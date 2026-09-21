@@ -6,9 +6,9 @@
 [![Multiplayer Compatible](https://img.shields.io/badge/Multiplayer-Server--Synced-blue.svg)]()
 [![Framework](https://img.shields.io/badge/Requires-BepInEx-red.svg)]()
 [![Crossplay](https://img.shields.io/badge/Crossplay-PlayFab%2FXbox_Ready-purple.svg)]()
-[![Valheim 1.0](https://img.shields.io/badge/Valheim-1.0.7_Server-green.svg)]()
+[![Valheim 1.0](https://img.shields.io/badge/Valheim-1.0.7--1.0.15_Server-green.svg)]()
 
-*No client install, ever. Every gate, terminal, and health check runs entirely on the server. Built and verified against Valheim 1.0.7.*
+*No client install, ever. Every gate, terminal, and health check runs entirely on the server. Built and verified against Valheim 1.0.7, 1.0.12 and 1.0.15.*
 
 </div>
 
@@ -87,7 +87,9 @@ HealthScan actually flagged: retagging an orphaned portal, clearing a dangling l
 by default (`RepairDryRunDefault`, config section `5 - Foundations: Repair`) — `removekey tpl
 repair` on its own just reports what it would do — and only `removekey tpl repair --apply` writes
 anything. Before it does, it automatically snapshots the world's portal state first, so `removekey
-tpl restore <name>` can always undo the whole batch if the fix wasn't what you wanted.
+tpl restore <name>` can always undo the whole batch if the fix wasn't what you wanted. If
+`AutoRepair` is on but Version Migration has the destructive gate closed, the scheduled `--apply`
+pass logs that it's idle once and then waits quietly, resuming on its own when the gate opens.
 
 ### 📊 Metrics
 **Know your portal network at a glance.** `removekey tpl metrics` (config section `7 - Foundations:
