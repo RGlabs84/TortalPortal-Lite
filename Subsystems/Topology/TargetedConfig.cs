@@ -24,6 +24,8 @@ namespace TortalPortalLite.Subsystems.Topology
         public static ConfigEntry<bool>? CorpseRunEnabled;
         public static ConfigEntry<float>? CorpseRunTtlMinutes;
         public static ConfigEntry<float>? CorpseRunOffsetMeters;
+        public static ConfigEntry<float>? CorpseRunSearchRadiusMeters;
+        public static ConfigEntry<float>? CorpseRunClearanceMeters;
 
         public static void Bind(ConfigFile config, ConfigSync configSync)
         {
@@ -41,14 +43,18 @@ namespace TortalPortalLite.Subsystems.Topology
                 "LoadFields TeleportWorld.m_exitDistance written on every phantom - how far in front of it a traveller steps out.", 0.5f, 5f);
 
             BedOffsetMeters = ConfigBinder.BindSynced(config, configSync, sBed, "OffsetMeters", 3f,
-                "Distance from a player's claimed bed to place the corpse-run gate's origin side, when they have a claimed bed.", 1f, 10f);
+                "Minimum distance from a player's claimed bed at which the corpse-run gate's origin side may stand. The search then works outward to SearchRadiusMeters (section 41) for a spot honouring ClearanceMeters.", 1f, 20f);
 
             CorpseRunEnabled = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "Enabled", true,
                 "On a tracked player's death, automatically raise a private ephemeral one-way portal from their bed (or the world hub) to their tombstone.");
             CorpseRunTtlMinutes = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "TtlMinutes", 30f,
                 "Maximum lifetime of a corpse-run gate even if the tombstone is never emptied.", 1f, 240f);
             CorpseRunOffsetMeters = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "OffsetMeters", 2f,
-                "Distance from the tombstone to place the corpse-run gate's destination side.", 1f, 8f);
+                "Minimum distance from the tombstone at which the grave-side gate may stand.", 1f, 20f);
+            CorpseRunSearchRadiusMeters = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "SearchRadiusMeters", 40f,
+                "How far out from the tombstone (and from the bed) to look for a spot that honours ClearanceMeters on dry, level ground. Rings are scanned outward, so the gate lands as close as the clearance allows; a bigger radius only matters in dense forest or built-up ground, at the cost of a longer walk from gate to grave.", 5f, 150f);
+            CorpseRunClearanceMeters = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "ClearanceMeters", 10f,
+                "Every corpse-run gate (both ends) must have no tree, rock, building piece, portal or generated location within this many metres of the portal frame, measured edge-to-edge from each object's collider extents rather than its pivot (tiny props like mushrooms and flowers only need 2 m). If no spot inside SearchRadiusMeters can honour it, the most open dry spot found is used and a warning is logged.", 1f, 30f);
         }
     }
 }

@@ -1,7 +1,7 @@
 # TortalPortal Lite — Admin & Configuration Reference
 
 **Mod:** TortalPortal Lite (GUID `wubarrk.tortalportallite`)
-**Version:** 1.0.2
+**Version:** 1.0.4
 **Install footprint:** strictly server-side. Every feature below runs entirely on the dedicated server against raw ZDO data — there is nothing for players to install, ever, and Steam/Xbox/PlayFab/crossplay clients all see the identical result.
 
 This document replaces the older `docs/FEATURE-STATUS.md` and `docs/WORKING-FEATURES.md`, which described a much larger, 263-option research catalog explored during the mod's R&D pass. That catalog has since been narrowed down to the 14 features actually shipped in the 1.0.0 release (down from 296 files/~44.8k lines to 83 files/~10k lines); the old documents are archived under `docs/research-archive/` for history and no longer describe the shipped mod. A 15th feature, BarrkBOT Portal Export, was added afterwards — it re-adds (against BarrkBOT's own ingestion contract, not the old generic export wave) the one piece of that cut research catalog BarrkBOT itself still needed.
@@ -146,8 +146,19 @@ Section `15 - Discord`
 
 **What it does:** On a tracked player's death, the server automatically raises a private, temporary portal near the player's claimed bed (or world spawn if they have none), leading straight to their tombstone — so gear recovery doesn't require a bare-handed run back into danger. This is a genuine **one-way** trip by design: there is no automatic portal back from the grave to the bed. The gate self-destroys once the grave is emptied/despawned, or after a configurable TTL.
 
+- **Clear-of-everything placement (both ends):** the server scans outward from the tombstone (and from the bed) in 1 m rings up to `SearchRadiusMeters` for a spot with `ClearanceMeters` of room measured edge-to-edge from every tree, boulder, building piece, portal and generated location. Each obstacle's footprint is its real collider extent (read off the prefab asset, scaled by the object's stored scale), not its pivot, so a boulder is as wide as it looks; locations use their exterior radius because their static geometry has no ZDOs. Sub-metre props (mushrooms, flowers, berry bushes) only need 2 m. Among fully clear spots the flattest/most open/nearest wins; if none honours the clearance, the most open dry spot is used and a warning with the shortfall and nearest obstacle is logged. The rotation faces the tombstone (or bed).
+- **On the real ground:** gate height comes from a headless re-run of the client's heightmap build (`HeightmapBuilder.Build` corner-biome blending) plus the zone's `_TerrainCompiler` terraforming data, so it matches the mesh a client sees — including levelled bases — instead of the un-blended `WorldGenerator.GetHeight` value. The pivot, the frame's four base corners and a 2 m ring of surroundings must all be dry (above water + 0.3 m), lava-free, level (≤30° strict, ≤44° relaxed) and contiguous (no cliff edge or hole).
+- **Dungeon deaths:** a tombstone at interior height (y > 1000) re-anchors the grave-side gate to the dungeon's exterior entrance location, so the gate opens outside the crypt rather than inside a wall; the player is told.
+- **Ocean deaths:** with no dry ground in range the gate floats on the water surface near the tombstone.
+- **Settle delay and stray-gate reaping:** a new tombstone gets 3 s to stop falling/sliding before its position is used; every maintenance tick reaps any corpse-run portal this server run did not raise (leftovers from a previous run), so restarts never accumulate gates.
+- **Indestructible Destination Gate:** Aggressive monsters and environmental hazards cannot destroy the recovery portal at the grave before the player reaches it. The destination gate sets Piece `m_randomTarget = false` and `m_primaryTarget = false` so mobs never target it, applies full `WearNTear` immunity against all physical/elemental damage with 1,000,000,000 HP, locks ZDO ownership to the server so client-side monster attack packets drop damage, and runs a 2-second watchdog that heals any incidental ticks.
+
 **Config:** Section `41 - Targeted: Corpse Run`
-- `CorpseRunTtlMinutes` — how long the gate persists before self-destroying if the grave hasn't already been emptied/despawned. Default: `30`
+- `TtlMinutes` — how long the gate persists before self-destroying if the grave hasn't already been emptied/despawned. Default: `30`
+- `ClearanceMeters` — edge-to-edge room every gate (both ends) must have from trees, rocks, building pieces, portals and generated locations. Default: `10` (range `1`–`30`)
+- `SearchRadiusMeters` — how far out from the tombstone (and the bed) to look for a spot honouring the clearance; rings are scanned outward so the gate lands as close as the clearance allows. Default: `40` (range `5`–`150`)
+- `OffsetMeters` — minimum distance of the grave-side gate from the tombstone. Default: `2`
+- Section `28 - Targeted: Bed`, `OffsetMeters` — minimum distance of the bed-side gate from the bed. Default: `3`
 
 **Declaration file:** None — these gates are created automatically by the server on death, not declared ahead of time.
 

@@ -175,15 +175,19 @@ namespace TortalPortalLite.Subsystems.Topology
         /// directly instead. PortalKeys.OneWayIntentional is set on the origin so both MaintenanceTick's
         /// own reciprocity fix-up (below) and HealthScanEngine's NonReciprocalLink check leave it alone.
         /// </summary>
-        public static (ZDO? origin, ZDO? destination) CreateStandaloneOneWay(Vector3 posA, Quaternion rotA, string kindA, Vector3 posB, Quaternion rotB, string kindB, string tag)
+        public static (ZDO? origin, ZDO? destination) CreateStandaloneOneWay(
+            Vector3 posA, Quaternion rotA, string kindA,
+            Vector3 posB, Quaternion rotB, string kindB,
+            string tag,
+            bool destinationIndestructible = false)
         {
             ZDO none = null;
-            ZDO a = CreateNewPhantom(posA, rotA, tag, kindA);
+            ZDO a = CreateNewPhantom(posA, rotA, tag, kindA, markAsManagedPhantom: true, indestructible: false);
             if (a == null)
             {
                 return (none, none);
             }
-            ZDO b = CreateNewPhantom(posB, rotB, tag, kindB, markAsManagedPhantom: false);
+            ZDO b = CreateNewPhantom(posB, rotB, tag, kindB, markAsManagedPhantom: false, indestructible: destinationIndestructible);
             if (b == null)
             {
                 DestroyPhantom(a);
@@ -214,10 +218,11 @@ namespace TortalPortalLite.Subsystems.Topology
 
         // ---------------------------------------------------------------------------- creation/destroy
 
-        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind) => CreateNewPhantom(pos, rot, tag, kind, markAsManagedPhantom: true);
+        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind) =>
+            CreateNewPhantom(pos, rot, tag, kind, markAsManagedPhantom: true, indestructible: false);
 
         /// <summary>markAsManagedPhantom=false skips the shared "Phantom" marker (used only by #207's destination end) so MaintenanceTick's generic reciprocity/reap sweep below never picks this ZDO up at all - its owning engine manages its whole lifecycle directly instead.</summary>
-        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind, bool markAsManagedPhantom)
+        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind, bool markAsManagedPhantom, bool indestructible = false)
         {
             int hash = ResolvePortalPrefabHash();
             if (hash == 0)
@@ -266,13 +271,32 @@ namespace TortalPortalLite.Subsystems.Topology
                 // LoadFields overrides (client-honoured only, SERVER decompile ZNetView.LoadFields
                 // :82669-82720) - never touches gameplay balance server-side, purely a griefing/exploit
                 // guard against "hammer the free phantom for materials" (#178 failure modes 2/3).
+                z.Set(TargetedZdoKeys.HasFields, true);
                 z.Set(TargetedZdoKeys.HasFieldsTeleportWorld, true);
                 z.Set(TargetedZdoKeys.TeleportWorldExitDistance, exitDistance);
-                if (lockRemoval)
+
+                if (lockRemoval || indestructible)
                 {
-                    z.Set(TargetedZdoKeys.HasFields, true);
                     z.Set(TargetedZdoKeys.HasFieldsPiece, true);
                     z.Set(TargetedZdoKeys.PieceCanBeRemoved, false);
+                }
+
+                if (indestructible)
+                {
+                    // Full immunity suite for tombstone corpse-run destination portal
+                    z.Set(TargetedZdoKeys.PieceRandomTarget, false);
+                    z.Set(TargetedZdoKeys.PiecePrimaryTarget, false);
+
+                    z.Set(TargetedZdoKeys.HasFieldsWearNTear, true);
+                    z.Set(TargetedZdoKeys.WearNTearHealth, 1000000000f);
+                    z.Set(TargetedZdoKeys.WearNTearNoSupportWear, false);
+                    z.Set(TargetedZdoKeys.WearNTearNoRoofWear, false);
+                    z.Set(TargetedZdoKeys.WearNTearSnowDamageImmune, true);
+                    z.Set(TargetedZdoKeys.WearNTearAshDamageImmune, true);
+                    z.Set(TargetedZdoKeys.WearNTearBurnable, false);
+
+                    z.Set(ZDOVars.s_health, 1000000000f);
+                    z.Set(TargetedZdoKeys.Indestructible, 1);
                 }
             });
 

@@ -1,5 +1,88 @@
 # Changelog
 
+## 1.0.4
+
+### Fixed
+- **Corpse-run gates no longer spawn inside rocks, trees or buildings.** The 1.0.3 scanner measured
+  clearance 1.3 m from each object's ZDO *pivot*, so a black-forest boulder whose pivot sat 4 m away
+  but whose mesh spanned 8 m passed as "clear" and gates were planted inside rock walls. Every
+  obstacle is now a disc sized from the prefab's real collider extents (read off the prefab asset
+  and scaled by the object's stored scale), generated locations count with their exterior radius
+  (their static geometry has no ZDOs), and clearance is measured edge-to-edge from the portal
+  frame. Creatures, items, projectiles and the tombstone itself are not obstacles.
+- **Gates sit on the real ground.** Height now comes from a headless re-run of the client's own
+  heightmap build — `HeightmapBuilder.Build`'s corner-biome blending plus the zone's
+  `_TerrainCompiler` terraforming deltas — instead of `WorldGenerator.GetHeight`, which returns the
+  un-blended single-biome height and knows nothing about hoe/pickaxe work; at biome borders and on
+  levelled bases that was metres off. The pivot, the frame's four base corners and a 2 m ring of
+  surroundings must all be dry, lava-free, level and contiguous.
+- **A death inside a dungeon** re-anchors the grave-side gate to the dungeon's exterior entrance
+  (same 64 m zone as the interior) instead of inside a room wall; the player is told.
+- **Stray gates after a restart** — gate bookkeeping lived only in memory while the portal ZDOs
+  persist, so every restart with an unrecovered tombstone left the old pair standing and raised a
+  second. Any corpse-run portal the running server did not raise is now reaped.
+- **Both ends of one gate can no longer share a clearing** when a player dies beside their own bed.
+- A new tombstone now gets 3 s to stop falling/sliding before its position is used.
+
+### Added
+- `ClearanceMeters` (section `41 - Targeted: Corpse Run`, default `10`, range `1`–`30`): edge-to-edge
+  room every gate (both ends) must have from every tree, rock, building piece, portal and location.
+  Sub-metre props (mushrooms, flowers, berry bushes) only need 2 m. When nothing inside the search
+  radius honours it, the most open dry spot found is used and the server log says so — with
+  distance, nearest obstacle and shortfall — so you can widen the search.
+- `SearchRadiusMeters` (same section, default `40`, range `5`–`150`) **replaces** 1.0.3's
+  `MaxOffsetMeters` (default 8, which could never satisfy a 10 m clearance; the rename stops a saved
+  `MaxOffsetMeters = 8` from silently capping the new search). The scan is rings outward, so the gate
+  still lands as close to the grave as the clearance allows; the search also auto-extends past any
+  obstacle that covers the anchor itself (a death inside the start temple or a ruin).
+- One `[CorpseRun]` log line per gate end on every death: quality (`Clear` / `Compromise` /
+  `WaterSurface` / `LastResort`), position, distance, slope, margin vs nearest obstacle, the
+  obstacle census, and the anchor's height above the modelled ground as a sanity readout.
+
+### Changed
+- `28 - Targeted: Bed` / `OffsetMeters` and `41` / `OffsetMeters` are now the *minimum* distance
+  from the bed / tombstone (ranges widened to 1–20); the maximum is `SearchRadiusMeters`.
+- Bed-side gates no longer accept underwater ground; an over-water bed gets a shoreline spot or a
+  surface-floating gate like any ocean death.
+- The death toast reads "near your bed" / "at the world spawn" and mentions when the grave gate
+  exits at a dungeon entrance.
+
+## 1.0.3
+
+### Added
+- **Configurable Corpse-Run Offset (`CorpseRunMaxOffsetMeters`).** Added `CorpseRunMaxOffsetMeters`
+  (default `8.0`, range `3.0`–`25.0` meters) to config section `41 - Targeted: Corpse Run`, governing
+  the outer radius searched when seeking unobstructed ground for the recovery gate.
+
+### Improved
+- **Intelligent Corpse-Run Gate Placement.** Replaced simple fixed-offset positioning with an
+  adaptive concentric-ring clearance algorithm adapted from Wonderland's starting grant placement:
+  - Concentric scanning rings (2.5m, 4.0m, 6.0m, up to `CorpseRunMaxOffsetMeters`) testing angular
+    candidate points around the tombstone or player bed.
+  - Multi-directional slope and clearance checks rejecting steep drop-offs, cliffs, and walls.
+  - Proximity collision checks against trees, rocks, buildings, and existing structures via
+    `ZdoSpatialQuery.FindNear` ensuring a 2.5m clear buffer.
+  - Shoreline and water handling ensuring the portal never spawns submerged under water while
+    gracefully accommodating coastal beach ground above the waterline.
+  - Interior dungeon detection: preserves elevated interior elevations (`y > 1000m`) without
+    snapping down to exterior world heightmap levels.
+  - Automatic yaw alignment orienting the destination portal to face directly toward the tombstone
+    upon arrival.
+
+### Changed
+- **Indestructible Tombstone Recovery Portal.** Prevented monsters and world damage from destroying
+  the corpse-run destination portal at the grave before the player can retrieve their gear:
+  - Mob AI de-targeting: sets Piece `m_randomTarget = false` and `m_primaryTarget = false` so mobs
+    ignore the portal and do not agro or attack it.
+  - Full client damage immunity: configures `WearNTear` fields on the portal ZDO with immune damage
+    modifiers across all physical and elemental damage types, disables structural support wear, and
+    sets health to 1,000,000,000 HP.
+  - Server ownership pinning: patches `ZDO.SetOwner` and `ZDO.SetOwnerInternal` to keep the destination
+    portal pinned to the dedicated server (ZDO owner 0L). Because Valheim clients only execute and
+    broadcast damage to objects they own, unowned server pieces drop client-side monster attack damage.
+  - Autonomous health watchdog: a 2-second background check ensures any transient damage is
+    immediately healed until the grave is claimed or the TTL expires.
+
 ## 1.0.2
 
 ### Fixed

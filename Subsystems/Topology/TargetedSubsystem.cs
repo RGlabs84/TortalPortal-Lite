@@ -24,6 +24,7 @@ namespace TortalPortalLite.Subsystems.Topology
         {
             TargetedConfig.Bind(config, configSync);
             TargetedPhantomPortalFactory.Initialize();
+            SubsystemRegistry.SafePatch(harmony, typeof(TargetedCorpseRunEngine.ZdoSetOwnerPatch));
         }
 
         public void OnWorldReady()

@@ -49,8 +49,20 @@ namespace TortalPortalLite.Subsystems.Topology
         public const string HasFields = "HasFields";
         public const string HasFieldsPiece = "HasFieldsPiece";
         public const string PieceCanBeRemoved = "Piece.m_canBeRemoved";
+        public const string PieceRandomTarget = "Piece.m_randomTarget";
+        public const string PiecePrimaryTarget = "Piece.m_primaryTarget";
+        public const string HasFieldsWearNTear = "HasFieldsWearNTear";
+        public const string WearNTearHealth = "WearNTear.m_health";
+        public const string WearNTearNoSupportWear = "WearNTear.m_noSupportWear";
+        public const string WearNTearNoRoofWear = "WearNTear.m_noRoofWear";
+        public const string WearNTearSnowDamageImmune = "WearNTear.m_snowDamageImmune";
+        public const string WearNTearAshDamageImmune = "WearNTear.m_ashDamageImmune";
+        public const string WearNTearBurnable = "WearNTear.m_burnable";
         public const string HasFieldsTeleportWorld = "HasFieldsTeleportWorld";
         public const string TeleportWorldExitDistance = "TeleportWorld.m_exitDistance";
         public const string TeleportWorldAllowAllItems = "TeleportWorld.m_allowAllItems";
+
+        /// <summary>1 on every portal ZDO intentionally pinned as indestructible (e.g. #207 Corpse-Run grave portal).</summary>
+        public const string Indestructible = "TPL_indestructible";
     }
 }

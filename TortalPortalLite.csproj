@@ -4,7 +4,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>TortalPortalLite</AssemblyName>
     <RootNamespace>TortalPortalLite</RootNamespace>
-    <Version>1.0.2</Version>
+    <Version>1.0.4</Version>
     <LangVersion>12.0</LangVersion>
     <Nullable>enable</Nullable>
     <!-- Same rationale as Wonderland.csproj: these are nullable-reference-type static-analysis
@@ -55,6 +55,14 @@
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\libs-Tools\1.0\server\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <!-- Collider shape classes (BoxCollider/MeshCollider/...) live here, not in CoreModule.
+         TargetedObstacleField reads collider extents off ZNetScene's prefab ASSETS - pure data,
+         no physics scene involved - to size each obstacle's footprint. Present in the dedicated
+         server's Managed folder (it runs PhysX for ghost-zone generation). -->
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>..\..\libs-Tools\1.0\server\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <!-- ServerSync.cs's client-side config-mismatch popup touches TMP_Text/MaskableGraphic directly. -->

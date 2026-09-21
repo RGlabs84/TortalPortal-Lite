@@ -140,8 +140,29 @@ client could simply ignore.
 **Gear recovery without a bare-handed run back into danger.** The instant a tracked player dies, the
 server automatically raises a private, temporary portal near their claimed bed (or the world spawn,
 if they have none) leading straight to their tombstone. This is a genuine **one-way** trip by
-design, not a round-trip pair — there is no automatic portal back from the grave to the bed. The
-gate self-destroys once the grave is emptied or despawned, or after a configurable
+design, not a round-trip pair — there is no automatic portal back from the grave to the bed.
+
+**Both ends are placed clear of everything and on the ground.** The server scans outward from the
+tombstone (and from the bed) in 1 m rings up to `SearchRadiusMeters` (default 40 m) for a spot with
+`ClearanceMeters` (default 10 m) of room — measured **edge to edge** from every tree trunk, boulder,
+building piece, portal and generated location, using each object's real collider extents rather
+than its pivot, so a boulder that spans eight metres around its centre counts as eight metres of
+boulder. Tiny props (mushrooms, flowers, berry bushes) only need 2 m. The ground under the gate is
+the client's own heightmap recipe re-run on the server — biome blending and hoe/pickaxe
+terraforming included — and the frame's four corners and surroundings are checked so it neither
+floats off a slope nor wedges against a cliff. If no spot inside the search radius can honour the
+clearance (deep forest, built-up ground), the most open dry spot found is used and the server log
+says so, with the distance, the nearest obstacle and the shortfall, so you can widen the search.
+A death inside a dungeon opens the grave-side gate at the dungeon's entrance. A gate raised by a
+previous server run and forgotten is reaped automatically, so restarts never leave stray portals.
+
+The destination portal at the grave is **completely indestructible**: monsters are de-targeted so
+they ignore it (`m_randomTarget = false`, `m_primaryTarget = false`), `WearNTear` damage modifiers
+are set to immune across all damage types with 1,000,000,000 HP, ZDO ownership is pinned to the
+server so client-side mob attack packets drop damage, and a 2-second background watchdog heals any
+stray ticks.
+
+The gate self-destroys once the grave is emptied or despawned, or after a configurable
 `CorpseRunTtlMinutes` (config section `41 - Targeted: Corpse Run`, default 30 minutes), whichever
 comes first.
 
@@ -227,7 +248,7 @@ a config change to take effect.
 | `7 - Foundations: Metrics` | Settings behind `removekey tpl metrics` — portal counts, per-tag/biome/builder breakdowns, and route heuristics. |
 | `11 - Routing: Schedules and Conditions` | `SealedGateEvalSeconds` — how often a Sealed Gate's `GlobalKey` is re-checked (default 1s). |
 | `16 - Routing: Delivery Pipeline` | `PrewarmRadius` — how far out DestinationPrewarm force-sends a changed destination to nearby clients (default 30m). |
-| `41 - Targeted: Corpse Run` | `CorpseRunTtlMinutes` — how long a Corpse-Run Gate stands before self-destroying if the grave hasn't already been emptied (default 30). |
+| `41 - Targeted: Corpse Run` | `TtlMinutes` — how long a Corpse-Run Gate stands before self-destroying if the grave hasn't already been emptied (default 30). `ClearanceMeters` — edge-to-edge room every gate must have from trees, rocks, pieces, portals and locations (default 10, range 1–30). `SearchRadiusMeters` — how far out from the tombstone / bed to look for such a spot (default 40, range 5–150). `OffsetMeters` — minimum distance of the grave-side gate from the tombstone (default 2). |
 | `155 - WildcardB: Portal Caps` | `PortalCapEnabled` (off by default) and `PortalCapPerCreator` (default 6) — the per-player portal limit and its enforcement. |
 
 ### Local to Your Game
