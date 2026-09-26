@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.7
+
+### Changed
+- **`1.0.16` added to the verified-build list.** An asmdiff of the 1.0.15 and 1.0.16 server assemblies
+  shows every type this mod patches or calls (`Game`, `ZDOMan`, `ZDO`, `ZDOExtraData`, `ZDOVars`,
+  `ZRoutedRpc`, `ZRpc`, `ZNetScene`, `ZNetView`, `TeleportWorld`, `ZDOID`, `ZPackage`, `ZNet`,
+  `FejdStartup`) is unchanged; of the 19 types that did change, only `TerrainComp` is one this mod has
+  any relationship with (`TargetedGroundProbe` reads the `_TerrainCompiler` wire format directly rather
+  than calling the class), and the changed members (`Awake`, `ApplyOperation`, `PaintCleared`, `.cctor`)
+  are not `Load`/`Save`/`ApplyToHeightmap`, the ones that format depends on. See
+  `Subsystems/Foundations/VersionMigration.cs`.
+- **Rebuilt against Valheim 1.0.16** (client build 25527674 / dedicated server build 25527701, network
+  version 40, unchanged from 1.0.15) and re-verified: a static reference check against both the client
+  and dedicated-server assemblies, and a headless 1.0.16 dedicated-server boot.
+
 ## 1.0.6
 
 ### Fixed

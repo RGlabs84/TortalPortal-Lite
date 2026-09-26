@@ -25,9 +25,15 @@ namespace TortalPortalLite.Subsystems.Foundations
         /// ilspycmd decompiles of the 1.0.12 and 1.0.15 server assemblies - Game, ZDOMan, ZDO, ZDOExtraData,
         /// ZDOVars, ZRoutedRpc, ZRpc, ZNetScene, ZNetView, TeleportWorld, ZDOID and ZPackage are byte-identical,
         /// and the classes that did change (Terminal, ZNet, TerrainComp, Inventory, Piece, Player, Character)
-        /// changed outside every member this mod patches or calls.
+        /// changed outside every member this mod patches or calls. 1.0.16 (2026-09-25): asmdiff of the 1.0.15
+        /// and 1.0.16 server assemblies - Game, ZDOMan, ZDO, ZDOExtraData, ZDOVars, ZRoutedRpc, ZRpc, ZNetScene,
+        /// ZNetView, TeleportWorld, ZDOID, ZPackage, ZNet and FejdStartup (every type this mod patches or calls)
+        /// are unchanged; the 19 changed types changed outside every member this mod patches or calls -
+        /// including TerrainComp, whose changes (Awake, ApplyOperation, PaintCleared, .cctor) miss
+        /// Load/Save/ApplyToHeightmap, the only TerrainComp members TargetedGroundProbe's wire-format reader
+        /// depends on.
         /// </summary>
-        private static readonly HashSet<string> VerifiedBuilds = new HashSet<string> { "1.0.7", "1.0.12", "1.0.15" };
+        private static readonly HashSet<string> VerifiedBuilds = new HashSet<string> { "1.0.7", "1.0.12", "1.0.15", "1.0.16" };
 
         public static bool IsVerifiedBuild { get; private set; }
         public static bool PortalPrefabHashSane { get; private set; }

@@ -6,9 +6,9 @@
 [![Multiplayer Compatible](https://img.shields.io/badge/Multiplayer-Server--Synced-blue.svg)]()
 [![Framework](https://img.shields.io/badge/Requires-BepInEx-red.svg)]()
 [![Crossplay](https://img.shields.io/badge/Crossplay-PlayFab%2FXbox_Ready-purple.svg)]()
-[![Valheim 1.0](https://img.shields.io/badge/Valheim-1.0.7--1.0.15_Server-green.svg)]()
+[![Valheim 1.0](https://img.shields.io/badge/Valheim-1.0.7--1.0.16_Server-green.svg)]()
 
-*No client install, ever. Every gate, terminal, and health check runs entirely on the server. Built and verified against Valheim 1.0.7, 1.0.12 and 1.0.15.*
+*No client install, ever. Every gate, terminal, and health check runs entirely on the server. Built and verified against Valheim 1.0.7, 1.0.12, 1.0.15 and 1.0.16.*
 
 </div>
 
