@@ -144,29 +144,43 @@ server automatically raises a private, temporary portal near their claimed bed (
 if they have none) leading straight to their tombstone. This is a genuine **one-way** trip by
 design, not a round-trip pair — there is no automatic portal back from the grave to the bed.
 
-**Both ends are placed clear of everything and on the ground.** The server scans outward from the
-tombstone (and from the bed) in 1 m rings up to `SearchRadiusMeters` (default 40 m) for a spot with
-`ClearanceMeters` (default 10 m) of room — measured **edge to edge** from every tree trunk, boulder,
-building piece, portal and generated location, using each object's real collider extents rather
-than its pivot, so a boulder that spans eight metres around its centre counts as eight metres of
-boulder. Tiny props (mushrooms, flowers, berry bushes) only need 2 m. The ground under the gate is
-the client's own heightmap recipe re-run on the server — biome blending and hoe/pickaxe
-terraforming included — and the frame's four corners and surroundings are checked so it neither
-floats off a slope nor wedges against a cliff. If no spot inside the search radius can honour the
-clearance (deep forest, built-up ground), the most open dry spot found is used and the server log
-says so, with the distance, the nearest obstacle and the shortfall, so you can widen the search.
-A death inside a dungeon opens the grave-side gate at the dungeon's entrance. A gate raised by a
-previous server run and forgotten is reaped automatically, so restarts never leave stray portals.
+**Both ends always appear.** A death is picked up from the tombstone itself, not from the list of
+connected players, so dying and immediately logging off still gets you a gate — it is standing when
+you come back, and that is when you are told about it. If a raise can't complete on the first try it
+is retried rather than dropped, and every maintenance pass afterwards checks **both** ends and
+re-builds whichever one is missing, in the same spot it was placed.
 
-The destination portal at the grave is **completely indestructible**: monsters are de-targeted so
-they ignore it (`m_randomTarget = false`, `m_primaryTarget = false`), `WearNTear` damage modifiers
-are set to immune across all damage types with 1,000,000,000 HP, ZDO ownership is pinned to the
-server so client-side mob attack packets drop damage, and a 2-second background watchdog heals any
-stray ticks.
+**Both ends are placed as clear as the ground allows, and on the ground.** The server scans outward
+from the tombstone (and from the bed) in 1 m rings for a spot with `ClearanceMeters` (default 10 m)
+of room — measured **edge to edge** from every tree trunk, boulder, building piece, portal and
+generated location, using each object's real collider extents rather than its pivot, so a boulder
+that spans eight metres around its centre counts as eight metres of boulder. Tiny props (mushrooms,
+flowers, berry bushes) only need 2 m. That figure is a *preference*: nowhere in a Valheim forest has
+10 m of room from everything, so the search steps the requirement down and takes the **closest** spot
+honouring the best figure that patch of map can offer — never below `MinRoomMeters` (default 2 m) of
+real room, and widening its radius before it settles for less. The ground under the gate is the
+client's own heightmap recipe re-run on the server — biome blending and hoe/pickaxe terraforming
+included — and the frame's four corners and surroundings are checked so it neither floats off a slope
+nor wedges against a cliff. A death inside a dungeon opens the grave-side gate at the dungeon's
+entrance. A gate raised by a previous server run and forgotten is reaped automatically, so restarts
+never leave stray portals.
 
-The gate self-destroys once the grave is emptied or despawned, or after a configurable
-`CorpseRunTtlMinutes` (config section `41 - Targeted: Corpse Run`, default 30 minutes), whichever
-comes first.
+**Both gates are immune to all damage** — not de-targeted, immune. Valheim never lets an attacker
+apply damage itself: every source, a troll's AoE swing and a fire's damage-over-time included, ends
+by sending an RPC to whichever machine *owns* the portal, and a routed RPC that finds no object on
+the receiving machine is dropped on the floor. A dedicated server never builds objects where players
+are, so a portal the server owns throws away every hit aimed at it. TortalPortal Lite holds that
+ownership against the server's own 2-second hand-off to nearby players, refuses both ways a portal
+can be deleted (including the one vanilla applies from any client without checking who sent it),
+no-ops every `WearNTear` path that could hurt the piece, writes 1,000,000,000 HP and the full wear
+immunity set for the moments a client holds a copy, blocks hammer removal, and keeps a watchdog that
+puts health and ownership back and counts every time it had to. Every 5 minutes the log says both
+ends are still standing and what the protection refused.
+
+The gate self-destroys once the grave is emptied or despawned. It no longer expires on a timer while
+the grave still stands: `GateTtlMinutes` (config section `41 - Targeted: Corpse Run`) defaults to `0`,
+meaning no limit, because a deep Mistlands or Ashlands corpse run routinely takes longer than the old
+30-minute cap allowed.
 
 ### 📡 DestinationPrewarm
 **No walking through into a portal that just quietly stopped working.** The instant any managed
@@ -250,7 +264,7 @@ a config change to take effect.
 | `7 - Foundations: Metrics` | Settings behind `removekey tpl metrics` — portal counts, per-tag/biome/builder breakdowns, and route heuristics. |
 | `11 - Routing: Schedules and Conditions` | `SealedGateEvalSeconds` — how often a Sealed Gate's `GlobalKey` is re-checked (default 1s). |
 | `16 - Routing: Delivery Pipeline` | `PrewarmRadius` — how far out DestinationPrewarm force-sends a changed destination to nearby clients (default 30m). |
-| `41 - Targeted: Corpse Run` | `TtlMinutes` — how long a Corpse-Run Gate stands before self-destroying if the grave hasn't already been emptied (default 30). `ClearanceMeters` — edge-to-edge room every gate must have from trees, rocks, pieces, portals and locations (default 10, range 1–30). `SearchRadiusMeters` — how far out from the tombstone / bed to look for such a spot (default 40, range 5–150). `OffsetMeters` — minimum distance of the grave-side gate from the tombstone (default 2). |
+| `41 - Targeted: Corpse Run` | `GateTtlMinutes` — how long a Corpse-Run Gate stands if the grave is never emptied; `0` (the default) means no limit, so it lives exactly as long as the grave. `ClearanceMeters` — edge-to-edge room every gate *prefers* from trees, rocks, pieces, portals and locations (default 10, range 1–30). `MinRoomMeters` — the hard floor of real room it will accept (default 2, range 0.5–10). `SearchRadiusMeters` — how far out from the tombstone / bed to look, widened automatically if nothing in it qualifies (default 40, range 5–150). `OffsetMeters` — minimum distance of the grave-side gate from the tombstone (default 2). `MaxGraveAgeMinutes` — skip graves older than this; `0` (default) means no limit. |
 | `155 - WildcardB: Portal Caps` | `PortalCapEnabled` (off by default) and `PortalCapPerCreator` (default 6) — the per-player portal limit and its enforcement. |
 
 ### Local to Your Game

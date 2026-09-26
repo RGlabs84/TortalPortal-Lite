@@ -166,41 +166,65 @@ namespace TortalPortalLite.Subsystems.Topology
         }
 
         /// <summary>
-        /// #207 Corpse-Run Gate, one-way variant: a genuine one-way trip, not a round-trip pair. Origin
-        /// is a normally-managed phantom (still swept by MaintenanceTick below, still self-heals against
-        /// vanilla's periodic reconciler) whose connection points at the destination; the destination is
-        /// fabricated but deliberately left un-connected (Portal connection stays None) AND unmarked as a
-        /// managed phantom, so MaintenanceTick's generic reciprocity sweep never touches it and never
-        /// tries to reap it as "orphaned" - the caller (TargetedCorpseRunEngine) owns its whole lifecycle
-        /// directly instead. PortalKeys.OneWayIntentional is set on the origin so both MaintenanceTick's
-        /// own reciprocity fix-up (below) and HealthScanEngine's NonReciprocalLink check leave it alone.
+        /// #207 Corpse-Run Gate, one-way variant: a genuine one-way trip, not a round-trip pair. The
+        /// origin's connection points at the destination; the destination is fabricated but deliberately
+        /// left un-connected (Portal connection stays None) - no return leg, by design.
+        ///
+        /// BOTH ends are minted engine-owned (TargetedZdoKeys.EngineOwned), so MaintenanceTick's generic
+        /// reciprocity/reap sweep never touches either - TargetedCorpseRunEngine owns their whole
+        /// lifecycle, including re-minting a missing end. That marker is load-bearing, not tidiness: the
+        /// generic sweep reaps a phantom whose connection target is gone, and vanilla's own
+        /// Game.ConnectPortals clears the origin's connection on EVERY pass because the destination points
+        /// at None (:100474-100481), so a managed origin gets reaped within one maintenance interval of
+        /// being raised. The engine re-asserts that connection from a ConnectPortals postfix instead.
+        ///
+        /// PortalKeys.OneWayIntentional is set on the origin so HealthScanEngine's NonReciprocalLink check
+        /// leaves it alone.
         /// </summary>
         public static (ZDO? origin, ZDO? destination) CreateStandaloneOneWay(
             Vector3 posA, Quaternion rotA, string kindA,
             Vector3 posB, Quaternion rotB, string kindB,
             string tag,
-            bool destinationIndestructible = false)
+            bool indestructible = false)
         {
             ZDO none = null;
-            ZDO a = CreateNewPhantom(posA, rotA, tag, kindA, markAsManagedPhantom: true, indestructible: false);
+            ZDO a = MintEngineOwned(posA, rotA, tag, kindA, indestructible);
             if (a == null)
             {
                 return (none, none);
             }
-            ZDO b = CreateNewPhantom(posB, rotB, tag, kindB, markAsManagedPhantom: false, indestructible: destinationIndestructible);
+            ZDO b = MintEngineOwned(posB, rotB, tag, kindB, indestructible);
             if (b == null)
             {
                 DestroyPhantom(a);
                 return (none, none);
             }
 
-            PortalOwnership.ClaimAndWrite(a, z =>
+            LinkOneWay(a, b);
+            return (a, b);
+        }
+
+        /// <summary>
+        /// Mints one engine-owned phantom end at an exact spot - for an engine re-minting the half of its
+        /// own pair that went missing, without disturbing the half that is still standing.
+        /// </summary>
+        public static ZDO? MintEngineOwned(Vector3 pos, Quaternion rot, string tag, string kind, bool indestructible)
+        {
+            return CreateNewPhantom(pos, rot, tag, kind, markAsManagedPhantom: true, indestructible: indestructible, engineOwned: true);
+        }
+
+        /// <summary>Points <paramref name="origin"/> at <paramref name="destination"/> and marks the link a deliberate one-way. Idempotent; safe to call every time vanilla's reconciler clears it.</summary>
+        public static void LinkOneWay(ZDO origin, ZDO destination)
+        {
+            if (origin == null || !origin.IsValid() || destination == null || !destination.IsValid())
             {
-                z.SetConnection(ZDOExtraData.ConnectionType.Portal, b.m_uid);
+                return;
+            }
+            PortalOwnership.ClaimAndWrite(origin, z =>
+            {
+                z.SetConnection(ZDOExtraData.ConnectionType.Portal, destination.m_uid);
                 z.Set(PortalKeys.OneWayIntentional, true);
             });
-            // b intentionally left with Portal connection = None - no return leg, by design.
-            return (a, b);
         }
 
         /// <summary>Owner-gated destroy, exposed for standalone-pair cleanup (#207) - same recipe every other reap path in this file uses.</summary>
@@ -221,8 +245,8 @@ namespace TortalPortalLite.Subsystems.Topology
         private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind) =>
             CreateNewPhantom(pos, rot, tag, kind, markAsManagedPhantom: true, indestructible: false);
 
-        /// <summary>markAsManagedPhantom=false skips the shared "Phantom" marker (used only by #207's destination end) so MaintenanceTick's generic reciprocity/reap sweep below never picks this ZDO up at all - its owning engine manages its whole lifecycle directly instead.</summary>
-        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind, bool markAsManagedPhantom, bool indestructible = false)
+        /// <summary>markAsManagedPhantom=false skips the shared "Phantom" marker entirely (the ZDO is then invisible to every phantom-filtered pass, including the one that keeps vanilla's random same-tag pairer away from it); engineOwned keeps the marker but excuses the ZDO from MaintenanceTick's generic reciprocity/reap sweep, because its own engine manages its whole lifecycle directly.</summary>
+        private static ZDO CreateNewPhantom(Vector3 pos, Quaternion rot, string tag, string kind, bool markAsManagedPhantom, bool indestructible = false, bool engineOwned = false)
         {
             int hash = ResolvePortalPrefabHash();
             if (hash == 0)
@@ -264,6 +288,10 @@ namespace TortalPortalLite.Subsystems.Topology
                 if (markAsManagedPhantom)
                 {
                     z.Set(TargetedZdoKeys.Phantom, 1);
+                }
+                if (engineOwned)
+                {
+                    z.Set(TargetedZdoKeys.EngineOwned, 1);
                 }
                 z.Set(TargetedZdoKeys.Kind, kind ?? "");
                 z.Set(ZDOVars.s_health, health);
@@ -366,6 +394,12 @@ namespace TortalPortalLite.Subsystems.Topology
                 ZDO zdo = ZDOMan.instance.GetZDO(rec.Uid);
                 if (zdo == null || !zdo.IsValid() || zdo.GetInt(TargetedZdoKeys.Phantom) != 1)
                 {
+                    continue;
+                }
+                if (zdo.GetInt(TargetedZdoKeys.EngineOwned) == 1)
+                {
+                    // Its own engine re-mints, re-links and reaps it; the generic rules below would
+                    // fight that (see CreateStandaloneOneWay for why the reap rule in particular).
                     continue;
                 }
 

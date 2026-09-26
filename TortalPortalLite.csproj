@@ -4,7 +4,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>TortalPortalLite</AssemblyName>
     <RootNamespace>TortalPortalLite</RootNamespace>
-    <Version>1.0.7</Version>
+    <Version>1.0.8</Version>
     <LangVersion>12.0</LangVersion>
     <Nullable>enable</Nullable>
     <!-- Same rationale as Wonderland.csproj: these are nullable-reference-type static-analysis

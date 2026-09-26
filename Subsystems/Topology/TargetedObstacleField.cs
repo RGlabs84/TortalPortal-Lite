@@ -168,20 +168,63 @@ namespace TortalPortalLite.Subsystems.Topology
         /// </summary>
         public float Margin(float x, float z, float clearance, out string nearest)
         {
-            float best = float.MaxValue;
-            nearest = "";
+            Probe(x, z, out float normalEdge, out float smallEdge, out string normalName, out string smallName);
+            return MarginFrom(normalEdge, smallEdge, normalName, smallName, clearance, out nearest);
+        }
+
+        /// <summary>
+        /// The raw edge-to-edge room at this spot, measured from the portal frame's own edge, split into
+        /// the nearest ordinary obstacle and the nearest sub-metre prop. Split because the two answer to
+        /// different clearance requirements (a mushroom never needs more than SmallObstacleClearance), and
+        /// separating them here lets a caller test the same spot against many clearance requirements
+        /// without walking the obstacle list again - which is what makes the graded search in
+        /// TargetedWorldGenValidation affordable. float.MaxValue for "nothing of that kind in reach".
+        /// </summary>
+        public void Probe(float x, float z, out float normalEdge, out float smallEdge, out string normalName, out string smallName)
+        {
+            normalEdge = float.MaxValue;
+            smallEdge = float.MaxValue;
+            normalName = "";
+            smallName = "";
             for (int i = 0; i < _obstacles.Count; i++)
             {
                 Obstacle o = _obstacles[i];
                 float dx = o.X - x;
                 float dz = o.Z - z;
                 float edge = Mathf.Sqrt((dx * dx) + (dz * dz)) - o.Radius - PortalFootprintRadius;
-                float required = o.Small ? Mathf.Min(clearance, SmallObstacleClearance) : clearance;
-                float margin = edge - required;
-                if (margin < best)
+                if (o.Small)
                 {
-                    best = margin;
-                    nearest = o.Name;
+                    if (edge < smallEdge)
+                    {
+                        smallEdge = edge;
+                        smallName = o.Name;
+                    }
+                }
+                else if (edge < normalEdge)
+                {
+                    normalEdge = edge;
+                    normalName = o.Name;
+                }
+            }
+        }
+
+        /// <summary>Room to spare beyond <paramref name="clearance"/> for a spot already probed (negative = short by that much). 1000 when nothing was in reach at all.</summary>
+        public static float MarginFrom(float normalEdge, float smallEdge, string normalName, string smallName, float clearance, out string nearest)
+        {
+            float best = float.MaxValue;
+            nearest = "";
+            if (normalEdge != float.MaxValue)
+            {
+                best = normalEdge - clearance;
+                nearest = normalName;
+            }
+            if (smallEdge != float.MaxValue)
+            {
+                float smallMargin = smallEdge - Mathf.Min(clearance, SmallObstacleClearance);
+                if (smallMargin < best)
+                {
+                    best = smallMargin;
+                    nearest = smallName;
                 }
             }
             return best == float.MaxValue ? 1000f : best;

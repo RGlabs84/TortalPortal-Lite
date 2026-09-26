@@ -1,5 +1,96 @@
 # Changelog
 
+## 1.0.8
+
+Corpse-Run Gate (feature 11) hardened on both of its promises: both ends always appear, and neither
+end can be destroyed.
+
+### Fixed
+
+- **The bed-side gate was being destroyed within seconds of every death, by this mod and vanilla
+  working against each other.** Vanilla's own `Game.ConnectPortals` reconciler tears down any portal
+  link whose partner points at `None` (`:100474-100481`), and a one-way gate's grave-side end points at
+  `None` *by design* - so within 5 s of every raise vanilla cleared the origin's connection, and the
+  phantom factory's generic "connection target is gone, reap the phantom" rule then deleted the
+  bed-side portal outright. Both halves are fixed: the ends are minted `TPL_engineowned` so the generic
+  sweep leaves them to the engine that owns them, and the one-way link is re-asserted from a
+  `Game.ConnectPortals` **postfix** - synchronously, inside vanilla's own call, so the intermediate
+  disconnected state is never sent to a client.
+- **Only the grave-side end was protected.** The bed-side end was an ordinary phantom, so
+  `ZDOMan.ReleaseNearbyZDOS` handed it to whichever player was nearby every 2 s and it took damage like
+  any other piece. Both ends are now registered with the new `TargetedPortalProtection`.
+- **Nothing stopped a client from deleting a gate.** `ZDOMan.RPC_DestroyZDO` applies whatever ZDOIDs a
+  client sends it with no sender check, and `ZDOMan.DestroyZDO` broadcasts a removal to every client
+  whenever the server itself owns the ZDO - either one deleted a corpse-run portal outright, with health
+  and ownership irrelevant. The mod already had the right primitive (`Core/Hooks/HandleDestroyedZdoHook`)
+  but only `AuditEngine` was registered against it, observe-only. Both removal paths are now vetoed for a
+  protected portal, and a blocked removal force-sends the ZDO so the client that had already dropped its
+  local copy gets the portal back.
+- **A death could be dropped silently and never retried.** `RaiseGate` returned without a word if the
+  tombstone had gone invalid in the 3 s settle window, and a failed mint logged an error and gave up -
+  in both cases after the death had already been recorded as seen, so it was never reconsidered. Raises
+  are now retried with backoff, and a death is only marked handled once a gate genuinely stands.
+- **A death was only noticed while the player was connected.** Detection now runs off the tombstone
+  table instead of the connected-player list, so dying and immediately disconnecting still produces a
+  gate - standing and waiting, with the notification deferred until the player is back.
+- **Nothing re-built an end that went missing.** The maintenance pass only ever looked at the
+  destination, and only when its ZDO was still valid. It now checks both ends every pass and re-mints
+  whichever one is gone, at the position it was placed at, re-linking and re-asserting afterwards.
+- **`ResolveOrigin` could return `(0,0,0)`** - open ocean on most seeds - for a player with no claimed
+  bed when the Start Temple could not be resolved. It now falls back to the player's last known
+  position, and says so.
+- **Gates expired mid-run.** `TtlMinutes` defaulted to 30, which is shorter than a deep Mistlands or
+  Ashlands corpse run. Replaced by `GateTtlMinutes`, default `0` = no limit, so a gate lives exactly as
+  long as the grave does. (A new key rather than a new default: BepInEx keeps whatever value an existing
+  `.cfg` already holds, so a changed default never reaches a server that has run before.)
+
+### Changed
+
+- **Damage immunity is now argued from where damage is actually arbitrated, and enforced in four
+  independent places.** Every damage source in the game - melee, arrows, a troll's AoE swing, an `Aoe`
+  component's fire damage-over-time - ends at `WearNTear.Damage(HitData)`, whose entire body is
+  `m_nview.InvokeRPC("RPC_Damage", hit)` (`:150275`), and `ZNetView.InvokeRPC` routes to
+  `m_zdo.GetOwner()` (`:82901`). `ZRoutedRpc.HandleRoutedRPC` then drops the call outright when
+  `ZNetScene.FindInstance` finds no object (`:83692-83711`). A dedicated server pins its reference
+  position at `(1e6,0,1e6)` every physics tick (`:100340`) and so never instantiates anything at a real
+  player coordinate: a portal ZDO the server owns receives every damage call aimed at it and discards
+  100% of them, with no health threshold involved. So the mod (1) holds server ownership against
+  `ReleaseNearbyZDOS`, (2) vetoes both removal paths, (3) no-ops every `WearNTear` entry point that can
+  lower health or destroy the piece, for the case where a server does hold an instance, and (4) keeps the
+  1e9 health and wear-immunity field overrides for the window where a client holds a copy. De-targeting
+  (`Piece.m_randomTarget`/`m_primaryTarget`) is retained but is now documented as a courtesy, not a
+  defence - it never stopped area damage.
+- **A watchdog now counts what it had to fix**, and a status line every 5 minutes reports both ends
+  standing plus every damage call, removal and ownership steal the protection refused. "Is anything
+  getting through" is an answerable question instead of a guess.
+- **`ClearanceMeters` is a preference, scanned in descending tiers, instead of all-or-nothing.** On the
+  live server 40 of 40 logged placements came back `Compromise` and not one reached `Clear`: at
+  `ClearanceMeters=15` (and at the 10 m default) nowhere in a Valheim forest has that much room from
+  every tree, rock and building piece, so every gate fell through to a last-ditch "most open spot" that
+  weighs a metre of room against thirty metres of walking - which is how gates ended up 26-40 m from the
+  bed they were meant to stand beside, and why the warning it logged every single time carried no signal.
+  The search now tries the configured clearance, then progressively smaller requirements, and takes the
+  closest spot honouring the best one available, never accepting less than the new `MinRoomMeters` hard
+  floor while any spot in range can meet it - widening the search radius (up to 4x, capped at 200 m)
+  first. New `Reduced` quality for "met a smaller requirement in full", so a warning again means
+  something. Log lines now read as room actually obtained versus room needed.
+- **Death-detection latency cut from tens of seconds to a tick or two.** Respawning destroys the
+  player's character ZDO and mints a new one (`Game._RequestRespawn` :100278-100293), so a character that
+  is replaced or disappears opens a short watch that scans the player's last known position - which is
+  where a fresh tombstone is - instead of waiting for the paced background sweep's cursor to come round.
+  That sweep's own budget went from 20 to 48 sectors per tick.
+- New config in section `41 - Targeted: Corpse Run`: `MinRoomMeters` (default 2), `MaxGraveAgeMinutes`
+  (default 0 = no limit), `GateTtlMinutes` (default 0 = no limit, replaces `TtlMinutes`).
+
+### Known gaps
+
+- `Core/Hooks/RpcZdoDataHook`'s leading-ZDOID capture reads the `int` count field that
+  `ZDOMan.RPC_ZDOData` writes first (`:77133`), not a ZDOID, so the value it hands its postfix handlers is
+  garbage. Nothing in the corpse-run path depends on it; `AuditEngine` is the only consumer. Left alone
+  in this release rather than changed blind.
+- Older `Subsystems/Foundations/` doc comments still cite 1.0.12 decompile line numbers, now ~32-43
+  lines low against 1.0.15/1.0.16.
+
 ## 1.0.7
 
 ### Changed

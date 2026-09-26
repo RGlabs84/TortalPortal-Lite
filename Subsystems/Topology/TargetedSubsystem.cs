@@ -14,6 +14,10 @@ namespace TortalPortalLite.Subsystems.Topology
     /// pass runs first each tick so CorpseRun always sees a freshly-reaped, freshly-reasserted phantom
     /// set; the bed/tombstone sweeps run next so their lookup tables are current before CorpseRun reads
     /// them this same tick.
+    ///
+    /// CorpseRun also re-asserts its own one-way link from a Game.ConnectPortals postfix, which fires on
+    /// vanilla's own 5 s cadence rather than this tick order - see TargetedCorpseRunEngine's header for
+    /// why that has to happen inside vanilla's call rather than on the next tick.
     /// </summary>
     public class TargetedSubsystem : IPortalSubsystem
     {
@@ -24,7 +28,10 @@ namespace TortalPortalLite.Subsystems.Topology
         {
             TargetedConfig.Bind(config, configSync);
             TargetedPhantomPortalFactory.Initialize();
-            SubsystemRegistry.SafePatch(harmony, typeof(TargetedCorpseRunEngine.ZdoSetOwnerPatch));
+            TargetedCorpseRunEngine.Initialize();
+            // Not SafePatch: this set is installed patch-by-patch so one signature drift disables one
+            // layer with a named warning instead of silently dropping the whole set.
+            TargetedPortalProtection.Install(harmony);
         }
 
         public void OnWorldReady()

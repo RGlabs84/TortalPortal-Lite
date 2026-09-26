@@ -64,5 +64,15 @@ namespace TortalPortalLite.Subsystems.Topology
 
         /// <summary>1 on every portal ZDO intentionally pinned as indestructible (e.g. #207 Corpse-Run grave portal).</summary>
         public const string Indestructible = "TPL_indestructible";
+
+        /// <summary>
+        /// 1 on a phantom whose whole lifecycle belongs to the engine that minted it, so
+        /// TargetedPhantomPortalFactory's generic reciprocity/reap sweep skips it entirely. Needed for
+        /// #207's ends specifically: the generic sweep's rule is "connection target gone -&gt; reap the
+        /// phantom", and vanilla's own Game.ConnectPortals clears a one-way origin's connection on every
+        /// pass (:100474-100481 tears down any link whose partner points at None), so without this marker
+        /// the factory reaps the bed-side gate seconds after the engine raises it.
+        /// </summary>
+        public const string EngineOwned = "TPL_engineowned";
     }
 }

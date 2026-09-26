@@ -22,10 +22,12 @@ namespace TortalPortalLite.Subsystems.Topology
 
         // --- #207 Corpse-Run Gate ---
         public static ConfigEntry<bool>? CorpseRunEnabled;
-        public static ConfigEntry<float>? CorpseRunTtlMinutes;
+        public static ConfigEntry<float>? CorpseRunGateTtlMinutes;
         public static ConfigEntry<float>? CorpseRunOffsetMeters;
         public static ConfigEntry<float>? CorpseRunSearchRadiusMeters;
         public static ConfigEntry<float>? CorpseRunClearanceMeters;
+        public static ConfigEntry<float>? CorpseRunMinRoomMeters;
+        public static ConfigEntry<float>? CorpseRunMaxGraveAgeMinutes;
 
         public static void Bind(ConfigFile config, ConfigSync configSync)
         {
@@ -43,18 +45,25 @@ namespace TortalPortalLite.Subsystems.Topology
                 "LoadFields TeleportWorld.m_exitDistance written on every phantom - how far in front of it a traveller steps out.", 0.5f, 5f);
 
             BedOffsetMeters = ConfigBinder.BindSynced(config, configSync, sBed, "OffsetMeters", 3f,
-                "Minimum distance from a player's claimed bed at which the corpse-run gate's origin side may stand. The search then works outward to SearchRadiusMeters (section 41) for a spot honouring ClearanceMeters.", 1f, 20f);
+                "Minimum distance from a player's claimed bed at which the corpse-run gate's origin side may stand. The search then works outward to SearchRadiusMeters (section 41) for the closest spot with as much room as that patch of ground can offer.", 1f, 20f);
 
             CorpseRunEnabled = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "Enabled", true,
                 "On a tracked player's death, automatically raise a private ephemeral one-way portal from their bed (or the world hub) to their tombstone.");
-            CorpseRunTtlMinutes = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "TtlMinutes", 30f,
-                "Maximum lifetime of a corpse-run gate even if the tombstone is never emptied.", 1f, 240f);
+            // Deliberately a NEW key rather than a new default on TtlMinutes: BepInEx keeps whatever value
+            // an existing .cfg already holds, so changing a default in code never reaches a server that
+            // has run before. Renaming is the only way a corrected default actually lands.
+            CorpseRunGateTtlMinutes = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "GateTtlMinutes", 0f,
+                "Maximum lifetime of a corpse-run gate even if the tombstone is never emptied. 0 (the default) means no limit: the gate lives exactly as long as the grave does, and closes the moment the grave is recovered. Was TtlMinutes=30 through 1.0.7, which closed gates mid-run - a deep Mistlands or Ashlands corpse run routinely takes longer than half an hour.", 0f, 240f);
             CorpseRunOffsetMeters = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "OffsetMeters", 2f,
                 "Minimum distance from the tombstone at which the grave-side gate may stand.", 1f, 20f);
             CorpseRunSearchRadiusMeters = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "SearchRadiusMeters", 40f,
-                "How far out from the tombstone (and from the bed) to look for a spot that honours ClearanceMeters on dry, level ground. Rings are scanned outward, so the gate lands as close as the clearance allows; a bigger radius only matters in dense forest or built-up ground, at the cost of a longer walk from gate to grave.", 5f, 150f);
+                "How far out from the tombstone (and from the bed) to look for a spot on dry, level ground. Rings are scanned outward, so the gate lands as close as the ground and the obstacles allow. If nowhere inside this radius can offer even MinRoomMeters of room, the radius is widened automatically (up to 4x, capped at 200 m) rather than accepting a spot jammed into a rock.", 5f, 150f);
             CorpseRunClearanceMeters = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "ClearanceMeters", 10f,
-                "Every corpse-run gate (both ends) must have no tree, rock, building piece, portal or generated location within this many metres of the portal frame, measured edge-to-edge from each object's collider extents rather than its pivot (tiny props like mushrooms and flowers only need 2 m). If no spot inside SearchRadiusMeters can honour it, the most open dry spot found is used and a warning is logged.", 1f, 30f);
+                "How much room a corpse-run gate PREFERS: no tree, rock, building piece, portal or generated location within this many metres of the portal frame, measured edge-to-edge from each object's collider extents rather than its pivot (tiny props like mushrooms and flowers only ever need 2 m). This is a preference, not a requirement - the search tries it first, then progressively smaller requirements down to MinRoomMeters, and takes the closest spot that honours the best one this patch of map can actually offer. Through 1.0.7 it was all-or-nothing, and since nowhere in a Valheim forest has 10-15 m of room from everything, every single gate fell through to a last-ditch 'most open spot' that could land 40 m from the bed.", 1f, 30f);
+            CorpseRunMinRoomMeters = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "MinRoomMeters", 2f,
+                "The hard floor: real edge-to-edge room the portal frame must have, beyond its own 1.25 m footprint. The search never accepts less while any spot in the (automatically widened) radius can offer it - a gate 80 m away that a player can actually walk into beats one 20 m away wedged inside a boulder.", 0.5f, 10f);
+            CorpseRunMaxGraveAgeMinutes = ConfigBinder.BindSynced(config, configSync, sCorpseRun, "MaxGraveAgeMinutes", 0f,
+                "Skip raising a gate for a grave older than this, measured from the tombstone's own recorded time of death. 0 (the default) means no limit - any grave still standing was never recovered, so a gate to it is as useful as one raised at the moment of death. Raise it above 0 only if you would rather week-old graves were left alone after a restart.", 0f, 10080f);
         }
     }
 }
