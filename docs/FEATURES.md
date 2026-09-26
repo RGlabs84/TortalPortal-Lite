@@ -1,7 +1,7 @@
 # TortalPortal Lite — Admin & Configuration Reference
 
 **Mod:** TortalPortal Lite (GUID `wubarrk.tortalportallite`)
-**Version:** 1.0.5
+**Version:** 1.0.6
 **Install footprint:** strictly server-side. Every feature below runs entirely on the dedicated server against raw ZDO data — there is nothing for players to install, ever, and Steam/Xbox/PlayFab/crossplay clients all see the identical result.
 
 This document replaces the older `docs/FEATURE-STATUS.md` and `docs/WORKING-FEATURES.md`, which described a much larger, 263-option research catalog explored during the mod's R&D pass. That catalog has since been narrowed down to the 14 features actually shipped in the 1.0.0 release (down from 296 files/~44.8k lines to 83 files/~10k lines); the old documents are archived under `docs/research-archive/` for history and no longer describe the shipped mod. A 15th feature, BarrkBOT Portal Export, was added afterwards — it re-adds (against BarrkBOT's own ingestion contract, not the old generic export wave) the one piece of that cut research catalog BarrkBOT itself still needed.

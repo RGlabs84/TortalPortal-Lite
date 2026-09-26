@@ -25,7 +25,7 @@ namespace TortalPortalLite
     {
         public const string ModGUID = "wubarrk.tortalportallite";
         public const string ModName = "TortalPortalLite";
-        public const string ModVersion = "1.0.5";
+        public const string ModVersion = "1.0.6";
 
         private const float ConfigPollInterval = 5f;
 
@@ -51,7 +51,13 @@ namespace TortalPortalLite
             {
                 DisplayName = ModName,
                 CurrentVersion = ModVersion,
-                MinimumRequiredVersion = ModVersion
+                MinimumRequiredVersion = ModVersion,
+                // Server-only mod: ServerSync's ModRequired defaults to TRUE, which
+                // kicks any client carrying ServerSync but not this DLL. Vanilla
+                // clients never ran the check, so this only ever showed up against a
+                // modded client. MinimumRequiredVersion stays: it is not required,
+                // but a client that does load it must be on a matching version.
+                ModRequired = false
             };
 
             GlobalConfig.Bind(Config, ConfigSync);

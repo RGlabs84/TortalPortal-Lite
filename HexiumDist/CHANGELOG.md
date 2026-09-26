@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.6
+
+### Fixed
+- **A modded client was kicked for not having TortalPortalLite installed — a server-only mod.**
+  (`Plugin.cs` `ConfigSync` initializer.) The plugin set `DisplayName`, `CurrentVersion` and
+  `MinimumRequiredVersion` on its `ConfigSync` but never `ModRequired`, which ServerSync defaults
+  to `true` (`ServerSync.cs:1148`). `GetFailedServer` fails every check where
+  `ModRequired && !ValidatedClients.Contains(rpc)` (`ServerSync.cs:1248`), and a client without
+  the DLL never validates, so it was disconnected with `ConnectionStatus.ErrorVersion` naming this
+  mod. A vanilla client has no ServerSync and sends no version list, so the check never ran and
+  the bug stayed invisible on vanilla servers; it only bites a modded client whose pack correctly
+  omits the server-side mods. `ModRequired = false` is now set explicitly. `MinimumRequiredVersion`
+  stays: not required, but a client that does load it must match versions.
+
 ## 1.0.5
 
 ### Fixed
